@@ -1,0 +1,234 @@
+(function ($) {
+    $(document).ready(function () {
+        //SC FEATURED BLOG - sc_blog_destacado (shorcodes_kp.php)
+        if ($("#sc_featured_blog_image").length > 0){
+            addSimpleObserver(document.querySelector("#sc_featured_blog_content"), document.querySelector("#sc_featured_blog_image"))
+        }
+
+        //SINGLE BLOG - Featured Image (content-single.php)
+        if ($("#single_blog_featured_image").length > 0){
+            addSimpleObserver(document.querySelector("#single_blog_featured_image"), document.querySelector("#single_blog_featured_image"))
+        }
+
+        // SINGLE COLECCION - Featured image (single-coleccion.php)
+        if ($("#coleccion_featured_image").length > 0){
+            addSimpleObserver(document.querySelector("#kp_coleccion_block_intro"), document.querySelector("#coleccion_featured_image"))
+        }
+
+        // SC RELATED COLECCION - IMAGE - sc_colecciones_relacionadas (shorcodes_kp.php)
+        if ($(".kp_coleccion_related_featured_img").length > 0){
+            addObserver2Wrapper(document.querySelectorAll(".kp_coleccion_related_featured_img_wrapper"))
+        }
+
+        // SC BLOG - IMAGE - sc_blog (shorcodes_kp.php) / ws_get_blog_paged (services.php) // index.php
+        if ($(".kp_section_blog_featured_image_animation_wrapper").length > 0){
+            addObserver2Wrapper(document.querySelectorAll(".kp_section_blog_featured_image_animation_wrapper"))
+        }
+
+        // SELLO LIDERES ALFOMBRAS A MEDIDA - Observer
+        if ($("#sello-lideres-alfombras-medida").length > 0){
+            const observerDecoration = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.intersectionRatio > .5){
+                        $("#sello-lideres-alfombras-medida img").css('animation-name', 'rotate')
+                    } else {
+                        $("#sello-lideres-alfombras-medida img").css('animation-name', 'none')
+                    }
+                })
+            }, {threshold: [0,1]}).observe(document.querySelector("#sello-lideres-alfombras-medida"))
+        }
+
+        // ESTRELLA BLOG - Observer
+        if ($("#blog_decoration").length > 0){
+            const observerDecoration = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.intersectionRatio > .5){
+                        $("#blog_decoration").css('animation-name', 'rotate')
+                    } else {
+                        $("#blog_decoration").css('animation-name', 'none')
+                    }
+                })
+            }, {threshold: [0,1]}).observe(document.querySelector("#blog_decoration"))
+        }
+
+        // CONTACT PAGE - Observer flechas
+        if ($(".contact-page").length > 0) {
+            const observerFlechas = []
+            const flechasWrapper = document.querySelectorAll(".line-vertical-wrapper")
+
+            flechasWrapper.forEach(flecha => {
+                observerFlechas.push(new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.intersectionRatio > .1){
+                            $(".line-vertical-wrapper").find(".line-vertical.arrow-down").addClass("bounce")
+                        } else {
+                            $(".line-vertical-wrapper").find(".line-vertical.arrow-down").removeClass("bounce")
+                        }
+                    })
+                }, {threshold: [0,1]}).observe(flecha))
+            })
+        }
+
+        //Flecha readmore enter
+        $("body").on("mouseover", 'a.read-more__link', function() {
+            $(this).find("i.kp_lateral_bounce").css('animation-name', 'bounce_lateral')
+        })
+
+        //Flecha readmore enter
+        $("body").on("mouseout", 'a.read-more__link', function() {
+            $(this).find("i.kp_lateral_bounce").on('animationiteration', function() {
+                $(this).css('animation-name', 'none')
+                $(this).replaceWith($(this).clone(true))
+            })
+        })
+
+        //Flecha enlaces enter
+        $('a i.kp_lateral_bounce').parent().hover(function() {
+            $(this).find("i.kp_lateral_bounce").css('animation-name', 'bounce_lateral')
+        })
+
+        //Flecha enlaces out
+        $('a i.kp_lateral_bounce').parent().mouseout(function() {
+            $(this).find("i.kp_lateral_bounce").on('animationiteration', function() {
+                $(this).css('animation-name', 'none')
+                $(this).replaceWith($(this).clone(true))
+            })
+        })
+    })
+})
+(jQuery)
+
+
+
+const getRandomAnimation = (from, to, exclude = []) => {
+    let random = 0
+
+    do{
+        random = Math.floor(Math.random() * (to - from + 1) + from)
+    }while(exclude.includes(random))
+
+    return random
+}
+
+// Add class to animate image
+const addSingleAnimationClass = (image, animationUsed) => {
+    const animation = getRandomAnimation(1, 4, animationUsed)
+
+    image.classList.remove("animation-1")
+    image.classList.remove("animation-2")
+    image.classList.remove("animation-3")
+    image.classList.remove("animation-4")
+
+    image.classList.add(`animation-${animation}`)
+
+    return animation
+}
+
+// Add class to animate images
+const addAnimationClass = (images) => {
+    if (images.length > 0) {
+        let animation_used = []
+        let animation = 0
+
+        for (var i = 0; i < images.length; i++) {
+            images[i].classList.remove("animation-1")
+            images[i].classList.remove("animation-2")
+            images[i].classList.remove("animation-3")
+            images[i].classList.remove("animation-4")
+
+            animation = getRandomAnimation(1, 4, animation_used)
+            animation_used.push(animation)
+
+            if (animation_used.length == 4) {
+                animation_used = []
+            }
+
+            images[i].classList.add(`animation-${animation}`)
+        }
+    }
+}
+
+const addSimpleObserver = (watch, element) => {
+    let animationUsed = []
+
+    //Add animation class
+    let animation = addSingleAnimationClass(element, animationUsed)
+    animationUsed.push(animation)
+
+    if (animationUsed.length == 4) {
+        animationUsed = []
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.intersectionRatio > .1) {
+                element.classList.add("is_ready")
+            }else if (entry.isIntersecting) {
+                element.classList.add("is_ready")
+            }else{
+                element.classList.remove("is_ready")
+
+                //Add animation class
+                animation = addSingleAnimationClass(element)
+                animationUsed.push(animation)
+
+                if (animationUsed.length == 4) {
+                    animationUsed = []
+                }
+            }
+        })
+    }).observe(watch)
+}
+
+const addObserver2Wrapper = (elements, interSection = .2) => {
+    const observerGaleriaFeaturedPlus = []
+    let animation_used = []
+    let animation = 0
+
+    if (elements.length > 0) {
+        elements.forEach(element => {
+            animation = getRandomAnimation(1, 4, animation_used)
+            animation_used.push(animation)
+
+            if (animation_used.length == 4) {
+                animation_used = []
+            }
+
+            //elimino animación previa
+            element.children[0].classList.remove("animation-1")
+            element.children[0].classList.remove("animation-2")
+            element.children[0].classList.remove("animation-3")
+            element.children[0].classList.remove("animation-4")
+
+            //Añado nueva animacion
+            element.children[0].classList.add(`animation-${animation}`)
+        })
+
+        elements.forEach(element => {
+            observerGaleriaFeaturedPlus.push(new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.intersectionRatio > interSection) {
+                        element.children[0].classList.add("is_ready")
+                    } else if (entry.isIntersecting) {
+                        element.children[0].classList.add("is_ready")
+                    } else {
+                        element.children[0].classList.remove("is_ready")
+                        element.children[0].classList.remove("animation-1")
+                        element.children[0].classList.remove("animation-2")
+                        element.children[0].classList.remove("animation-3")
+                        element.children[0].classList.remove("animation-4")
+
+                        animation = getRandomAnimation(1, 4, animation_used)
+                        animation_used.push(animation)
+
+                        if (animation_used.length == 4) {
+                            animation_used = []
+                        }
+
+                        element.children[0].classList.add(`animation-${animation}`)
+                    }
+                })
+            }, {threshold: [0, 1]}).observe(element))
+        })
+    }
+}

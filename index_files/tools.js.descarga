@@ -1,0 +1,94 @@
+import { transitionHiddenElement } from "../npm/node_modules/@cloudfour/transition-hidden-element/src/index.js"
+
+let top_search_visible = false
+let menu_visible = false
+
+const searchTransitioner = transitionHiddenElement({
+    element: document.querySelector('#big_search'),
+    visibleClass: 'is_open'
+})
+
+const menuTransitioner = transitionHiddenElement({
+    element: document.querySelector('#big_menu'),
+    visibleClass: 'is_open'
+})
+
+document.querySelector('#bt_close_big_search').addEventListener('click', (e) => {
+    e.preventDefault()
+
+    top_search_visible = false
+    document.getElementById("big_search_container").classList.remove("visible")
+    document.getElementById("bt_close_big_search").classList.remove("visible")
+    searchTransitioner.hide()
+})
+
+document.querySelector('#bt_close_big_menu').addEventListener('click', (e) => {
+    e.preventDefault()
+
+    menu_visible = false
+    document.getElementById("big_menu_container").classList.remove("visible")
+    document.getElementById("bt_close_big_menu").classList.remove("visible")
+    menuTransitioner.hide()
+})
+
+document.querySelector('#bt_search').addEventListener('click', (e) => {
+    e.preventDefault()
+
+    if (top_search_visible){
+        document.querySelector('#big_search_input').innerHTML = ""
+        document.getElementById("big_search_container").classList.remove("visible")
+        document.getElementById("bt_close_big_search").classList.remove("visible")
+        searchTransitioner.hide()
+        top_search_visible = false
+    }else {
+        searchTransitioner.show()
+        top_search_visible = true
+
+        const myTimeout = setTimeout(function(){
+            document.getElementById("big_search_container").classList.add("visible")
+            document.getElementById("bt_close_big_search").classList.add("visible")
+            document.querySelector('#big_search_input').innerHTML = ""
+            document.querySelector('#big_search_input').focus()
+            clearTimeout(myTimeout)
+        }, 200);
+    }
+})
+
+document.querySelector('#bt_menu').addEventListener('click', (e) => {
+    e.preventDefault()
+
+    if (menu_visible){
+        document.getElementById("big_menu_container").classList.remove("visible")
+        document.getElementById("bt_close_big_menu").classList.remove("visible")
+        menuTransitioner.hide()
+        menu_visible = false
+    }else {
+        menuTransitioner.show()
+        menu_visible = true
+
+        const myTimeout = setTimeout(function(){
+            document.getElementById("big_menu_container").classList.add("visible")
+            document.getElementById("bt_close_big_menu").classList.add("visible")
+            clearTimeout(myTimeout)
+        }, 200);
+    }
+})
+
+document.addEventListener('keydown', function(event){
+    if(event.key === "Escape"){
+        if (top_search_visible) {
+            document.querySelector('#big_search_input').innerHTML = ""
+            document.getElementById("big_search_container").classList.remove("visible")
+            document.getElementById("bt_close_big_search").classList.remove("visible")
+            searchTransitioner.hide()
+            top_search_visible = false
+        }
+
+        if (menu_visible) {
+            document.getElementById("big_menu_container").classList.remove("visible")
+            document.getElementById("bt_close_big_menu").classList.remove("visible")
+            menuTransitioner.hide()
+            menu_visible = false
+        }
+    }
+})

@@ -1,0 +1,2646 @@
+(function ($) {
+    const session_id = parseInt($("#session_id_exchange").val()) == 1 ? true : false
+
+    $(document).ready(function () {
+        //Readmore en textos
+        ReadMore.init()
+        let masonry = 0
+
+        const screenWidth = screen.width
+
+        if (screenWidth > 1440) {
+            masonry = 4
+        } else if (screenWidth > 1200) {
+            masonry = 3
+        } else if (screenWidth >= 768) {
+            masonry = 2
+        } else{
+            masonry = 1
+        }
+
+        //global
+        let imagesColores = [], imagesColoresAcabados = [], imagesAcabados = [], imagesGaleriaColeccion = [], imagesGaleriaColeccionAcabado = [], imagesGaleriaAcabado = [], imagesGaleriaBlog = []
+        let checkDuplicatesColores = [], checkDuplicatesColoresAcabados = [], checkDuplicatesAcabados = [], checkDuplicatesGaleriaColeccion = [], checkDuplicatesGaleriaAcabado = []
+        let instanceColores, instanceColoresAcabados, instanceAcabados, instanceGaleriaColeccion, instanceGaleriaAcabado, instanceGaleriaCatalogo, instanceGaleriaCatalogoAcabado, instanceGaleriaBlog
+        let apiColores, apiColoresAcabados, apiAcabados, apiGaleriaColeccion, apiGaleriaAcabado, apiGaleriaCatalogo, apiGaleriaCatalogoAcabado, apiGaleriaBlog
+
+        if($(".home .kp_blog_grid_section").length > 0){
+            if (screenWidth < 1370 && screenWidth > 1080){
+                $("#blog_wrapper").children().last().remove()
+            }
+
+            let $gridHomeBlog = $('#blog_wrapper').packery({
+                itemSelector: '.kp_blog_grid',
+                gutter: 48
+            })
+        }
+
+        $("body").on("click", ".add_favorito_no_session", function(e){
+            e.preventDefault()
+
+            const type = $(this).data("type")
+            const id = $(this).data("id")
+            const icon = $(this).find(".favorito")
+            const icon_active = icon.hasClass("active") ? true : false
+
+            $.magnificPopup.open({
+                items: {
+                    src: "#ask_email",
+                    type: 'inline',
+                },
+                callbacks: {
+                    beforeClose() {
+                        if (id && type) {
+                            $.ajax({
+                                type: 'post',
+                                url: customKPAjaxObject.ajax_url,
+                                dataType: "json",
+                                data: {
+                                    action: "ws_add_favorito",
+                                    security: customKPAjaxObject.security,
+                                    id: id,
+                                    tipo: type
+                                },
+                                success: function (response) {
+                                    if (icon_active) {
+                                        icon.removeClass("active")
+                                    } else {
+                                        icon.addClass("active")
+                                    }
+                                }
+                            })
+                        }
+                    }
+                }
+            })
+        })
+
+        //ask email
+        $("body").on("click", "#bt_ask_email", function (e) {
+            e.preventDefault()
+
+            const email = $("#user_email").val()
+
+            if (email) {
+                $.ajax({
+                    type: 'post',
+                    url: customKPAjaxObject.ajax_url,
+                    dataType: "json",
+                    data: {
+                        action: "ws_set_email_as_user_token",
+                        security: customKPAjaxObject.security,
+                        user_email: email
+                    },
+                    success: function (response) {
+                        $.magnificPopup.close()
+                    }
+                })
+            }else{
+                $.magnificPopup.close()
+            }
+        })
+
+        // ADD FAVORITO
+        $("body").on("click", ".add_favorito", function(e){
+            e.preventDefault()
+
+            let id = $(this).data("id")
+            let tipo = $(this).data("type")
+            let icon = $(this).find(".favorito")
+            let icon_active = icon.hasClass("active") ? true : false
+
+            if (id && tipo){
+                $.ajax({
+                    type: 'post',
+                    url: customKPAjaxObject.ajax_url,
+                    dataType: "json",
+                    data: {
+                        action: "ws_add_favorito",
+                        security: customKPAjaxObject.security,
+                        id: id,
+                        tipo: tipo
+                    },
+                    success:  function (response) {
+                        if (icon_active) {
+                            icon.removeClass("active")
+                        }else{
+                            icon.addClass("active")
+                        }
+                    }
+                })
+            }
+        })
+
+        // SINGLE COLECCION - BOTON TAB COLORES
+        $("body").on("click", ".coleccion_selector a#bt_colores", function(e){
+            e.preventDefault()
+
+            $(".coleccion_selector li").removeClass("active")
+            $(this).parent().addClass("active")
+            $("#selector_colores").addClass("active")
+            $("#selector_acabados").removeClass("active")
+        })
+
+        // SINGLE COLECCION - BOTON TAB ACABADOS
+        $("body").on("click", ".coleccion_selector a#bt_acabados", function(e){
+            e.preventDefault()
+
+            $(".coleccion_selector li").removeClass("active")
+            $(this).parent().addClass("active")
+            $("#selector_colores").removeClass("active")
+            $("#selector_acabados").addClass("active")
+        })
+
+        // SINGLE ACABADO - Lightbox colores
+        $("body").on("click", ".chocolat-acabado-color", function (e) {
+            e.preventDefault()
+
+            if (instanceColoresAcabados) {
+                apiColoresAcabados.destroy()
+            }
+
+            if (instanceColores) {
+                apiColores.destroy()
+            }
+
+            if (instanceAcabados) {
+                apiAcabados.destroy()
+            }
+
+            if (instanceGaleriaColeccion) {
+                apiGaleriaColeccion.destroy()
+            }
+
+            if (instanceGaleriaCatalogo) {
+                apiGaleriaCatalogo.destroy()
+            }
+
+            $("#chocolat_wrapper").addClass("lb_coleccion_options")
+            $("#chocolat_wrapper").removeClass("lb_galeria")
+
+            let index = 0
+            let indexClicked = 0
+            let itemClicked = $(this).data("link")
+
+            // Fila superior
+            $(".chocolat-acabado-color").each(function (item) {
+                if (!checkDuplicatesColoresAcabados.includes($(this).data("link"))) {
+                    const colorInfo = {
+                        type:           $(this).data("type") ? $(this).data("type") : false,
+                        acabado_id:     $(this).data("id") ? $(this).data("id") : false,
+                        acabado_name:   $(this).data("acabado_name") ? $(this).data("acabado_name") : false,
+                        acabado_slug:   $(this).data("acabado_slug") ? $(this).data("acabado_slug") : false,
+                        acabado_url:    $(this).data("acabado_url") ? $(this).data("acabado_url") : false,
+                        color_id:       $(this).data("color_id") ? $(this).data("color_id") : false,
+                        color_slug:     $(this).data("color_slug") ? $(this).data("color_slug") : false,
+                        color_name:     $(this).data("color_name") ? $(this).data("color_name") : false,
+                        color_image:    $(this).data("link") ? $(this).data("link") : false,
+                        color_image_url: $(this).data("color_image") ? $(this).data("color_image") : false,
+                        color_favorito: $(this).data("favorito") ? $(this).data("favorito") : 0,
+                    }
+
+                    imagesColoresAcabados.push({
+                        src:   $(this).data("link"),
+                        title: JSON.stringify(colorInfo),
+                    })
+
+                    checkDuplicatesColoresAcabados.push($(this).data("link"))
+                }
+            })
+
+            imagesColoresAcabados.forEach((item) => {
+                if (item.src == itemClicked) {
+                    indexClicked = index
+                    return
+                }
+
+                index++
+            })
+
+            if (typeof instanceColoresAcabados === "undefined") {
+                instanceColoresAcabados = Chocolat(imagesColoresAcabados, {
+                    imageSize:      "cover",
+                    loop:           true,
+                    container:      document.querySelector('#chocolat_container'),
+                    afterClose:     function () {
+                        $("#chocolat_overlay").css("z-index", 0)
+                        $("#chocolat_wrapper").css("z-index", 0)
+                        $("#chocolat_wrapper").css("opacity", 0)
+                    },
+                    afterImageLoad: function () {
+                        parseLBColorAcabado(JSON.parse(imagesColoresAcabados[apiColoresAcabados.current()].title))
+                    }
+                })
+
+                apiColoresAcabados = instanceColoresAcabados.api
+            }
+
+            document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColoresAcabados.close()
+            })
+
+            document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColoresAcabados.prev()
+            })
+
+            document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColoresAcabados.next()
+            })
+
+            $("#chocolat_overlay").css("z-index", 999)
+            $("#chocolat_wrapper").css("z-index", 1000)
+            $("#chocolat_wrapper").css("opacity", 1)
+
+            apiColoresAcabados.open(indexClicked)
+        })
+
+        // SINGLE COLECCION - Lightbox colores
+        $("body").on("click", ".chocolat-color", function (e) {
+            e.preventDefault()
+
+            if (instanceColores) {
+                apiColores.destroy()
+            }
+
+            if (instanceAcabados) {
+                apiAcabados.destroy()
+            }
+
+            if (instanceGaleriaColeccion) {
+                apiGaleriaColeccion.destroy()
+            }
+
+            if (instanceGaleriaCatalogo) {
+                apiGaleriaCatalogo.destroy()
+            }
+
+            $("#chocolat_wrapper").addClass("lb_coleccion_options")
+            $("#chocolat_wrapper").removeClass("lb_galeria")
+
+            let index = 0
+            let indexClicked = 0
+            let itemClicked = $(this).data("link")
+
+            // Fila superior
+            $(".chocolat-color").each(function (item) {
+                if (!checkDuplicatesColores.includes($(this).data("link"))) {
+                    const colorInfo = {
+                        type:           $(this).data("type") ? $(this).data("type") : false,
+                        coleccion_id:   $(this).data("id") ? $(this).data("id") : false,
+                        coleccion_name: $(this).data("coleccion_name") ? $(this).data("coleccion_name") : false,
+                        coleccion_slug: $(this).data("coleccion_slug") ? $(this).data("coleccion_slug") : false,
+                        acabado_id:     $(this).data("id") ? $(this).data("id") : false,
+                        acabado_name:   $(this).data("acabado_name") ? $(this).data("acabado_name") : false,
+                        acabado_slug:   $(this).data("acabado_slug") ? $(this).data("acabado_slug") : false,
+                        acabado_url:    $(this).data("acabado_url") ? $(this).data("acabado_url") : false,
+                        familia_slug:   $(this).data("familia_slug") ? $(this).data("familia_slug") : false,
+                        familia_name:   $(this).data("familia_name") ? $(this).data("familia_name") : false,
+                        color_id:       $(this).data("color_id") ? $(this).data("color_id") : false,
+                        color_slug:     $(this).data("color_slug") ? $(this).data("color_slug") : false,
+                        color_name:     $(this).data("color_name") ? $(this).data("color_name") : false,
+                        color_image:    $(this).data("link") ? $(this).data("link") : false,
+                        color_favorito: $(this).data("favorito") ? $(this).data("favorito") : 0,
+                    }
+
+                    imagesColores.push({
+                        src:   $(this).data("link"),
+                        title: JSON.stringify(colorInfo),
+                    })
+
+                    checkDuplicatesColores.push($(this).data("link"))
+                }
+            })
+
+            imagesColores.forEach((item) => {
+                if (item.src == itemClicked) {
+                    indexClicked = index
+                    return
+                }
+
+                index++
+            })
+
+            if (typeof instanceColores === "undefined") {
+                instanceColores = Chocolat(imagesColores, {
+                    imageSize:      "cover",
+                    loop:           true,
+                    container:      document.querySelector('#chocolat_container'),
+                    afterClose:     function () {
+                        $("#chocolat_overlay").css("z-index", 0)
+                        $("#chocolat_wrapper").css("z-index", 0)
+                        $("#chocolat_wrapper").css("opacity", 0)
+                    },
+                    afterImageLoad: function () {
+                        parseLBColor(JSON.parse(imagesColores[apiColores.current()].title))
+                    }
+                })
+
+                apiColores = instanceColores.api
+            }
+
+            document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColores.close()
+            })
+
+            document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColores.prev()
+            })
+
+            document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColores.next()
+            })
+
+            $("#chocolat_overlay").css("z-index", 999)
+            $("#chocolat_wrapper").css("z-index", 1000)
+            $("#chocolat_wrapper").css("opacity", 1)
+
+            apiColores.open(indexClicked)
+        })
+
+        // BUSCADOR PRODUCTOS - Lightbox colores
+        $("body").on("click", ".buscador-chocolat-color", function (e) {
+            e.preventDefault()
+
+            const color_item = $(this)
+
+            if (instanceAcabados) {
+                apiAcabados.destroy()
+            }
+
+            if (instanceGaleriaColeccion) {
+                apiGaleriaColeccion.destroy()
+            }
+
+            if (instanceGaleriaCatalogo) {
+                apiGaleriaCatalogo.destroy()
+            }
+
+            $("#chocolat_wrapper").addClass("lb_coleccion_options")
+            $("#chocolat_wrapper").removeClass("lb_galeria")
+
+            let index = 0
+            let indexClicked = 0
+            let itemClicked = color_item.data("link")
+
+            if (!checkDuplicatesColores.includes(color_item.data("link"))) {
+                const colorInfo = {
+                    coleccion_id:   color_item.data("id") ? color_item.data("id") : false,
+                    coleccion_name: color_item.data("coleccion_name") ? color_item.data("coleccion_name") : false,
+                    coleccion_slug: color_item.data("coleccion_slug") ? color_item.data("coleccion_slug") : false,
+                    familia_slug:   color_item.data("familia_slug") ? color_item.data("familia_slug") : false,
+                    familia_name:   color_item.data("familia_name") ? color_item.data("familia_name") : false,
+                    color_id:       color_item.data("color_id") ? color_item.data("color_id") : false,
+                    color_slug:     color_item.data("color_slug") ? color_item.data("color_slug") : false,
+                    color_url:      color_item.data("color_url") ? color_item.data("color_url") : false,
+                    color_name:     color_item.data("color_name") ? color_item.data("color_name") : false,
+                    color_image:    color_item.data("link") ? color_item.data("link") : false,
+                    color_favorito: color_item.data("favorito") ? color_item.data("favorito") : 0,
+                }
+
+                imagesColores.push({
+                    src:   color_item.data("link"),
+                    title: JSON.stringify(colorInfo),
+                })
+
+                checkDuplicatesColores.push(color_item.data("link"))
+            }
+
+            imagesColores.forEach((item) => {
+                if (item.src == itemClicked) {
+                    indexClicked = index
+                    return
+                }
+
+                index++
+            })
+
+            if (typeof instanceColores === "undefined") {
+                instanceColores = Chocolat(imagesColores, {
+                    imageSize:      "cover",
+                    loop:           true,
+                    container:      document.querySelector('#chocolat_container'),
+                    afterClose:     function () {
+                        $("#chocolat_overlay").css("z-index", 0)
+                        $("#chocolat_wrapper").css("z-index", 0)
+                        $("#chocolat_wrapper").css("opacity", 0)
+                    },
+                    afterImageLoad: function () {
+                        parseLBBuscadorColor(JSON.parse(imagesColores[apiColores.current()].title))
+                    }
+                })
+
+                apiColores = instanceColores.api
+            }
+
+            document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColores.close()
+            })
+
+            document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColores.prev()
+            })
+
+            document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiColores.next()
+            })
+
+            $("#chocolat_overlay").css("z-index", 999)
+            $("#chocolat_wrapper").css("z-index", 1000)
+            $("#chocolat_wrapper").css("opacity", 1)
+
+            apiColores.open(indexClicked)
+        })
+
+        // SINGLE COLECCION - Lightbox acabados
+        $("body").on("click", ".chocolat-acabado", function(e){
+            e.preventDefault()
+
+            if (instanceColores){
+                apiColores.destroy()
+            }
+
+            if (instanceGaleriaColeccion){
+                apiGaleriaColeccion.destroy()
+            }
+
+            if (instanceGaleriaCatalogo){
+                apiGaleriaCatalogo.destroy()
+            }
+
+            let index = 0
+            let indexClicked = 0
+            let itemClicked = $(this).data("acabado_url")
+
+            $("#chocolat_wrapper").addClass("lb_coleccion_options")
+            $("#chocolat_wrapper").removeClass("lb_galeria")
+
+            // Fila superior
+            $(".chocolat-acabado").each(function(item){
+                if (!checkDuplicatesAcabados.includes($(this).data("acabado_url"))) {
+                    const acabadoInfo = {
+                        coleccion_id: $(this).data("id") ? $(this).data("id") : false,
+                        coleccion_name: $(this).data("coleccion_name") ? $(this).data("coleccion_name") : false,
+                        coleccion_slug: $(this).data("coleccion_slug") ? $(this).data("coleccion_slug") : false,
+                        familia_slug: $(this).data("familia_slug") ? $(this).data("familia_slug") : false,
+                        familia_name: $(this).data("familia_name") ? $(this).data("familia_name") : false,
+                        acabado_id: $(this).data("acabado_id") ? $(this).data("acabado_id") : false,
+                        acabado_slug: $(this).data("acabado_slug") ? $(this).data("acabado_slug") : false,
+                        acabado_url: $(this).data("acabado_url") ? $(this).data("acabado_url") : false,
+                        acabado_name: $(this).data("acabado_name") ? $(this).data("acabado_name") : false,
+                        acabado_image:  $(this).data("link") ? $(this).data("link") : false,
+                        acabado_favorito:  $(this).data("favorito") ? $(this).data("favorito") : 0,
+                    }
+
+                    imagesAcabados.push({
+                        src: $(this).data("link"),
+                        acabado: $(this).data("acabado_url"),
+                        title: JSON.stringify(acabadoInfo),
+                    })
+
+                    checkDuplicatesAcabados.push($(this).data("acabado_url"))
+                }
+            })
+
+            imagesAcabados.forEach((item) => {
+                if (item.acabado == itemClicked){
+                    indexClicked = index
+                    return
+                }
+
+                index++
+            })
+
+            if (typeof instanceAcabados === "undefined") {
+                instanceAcabados = Chocolat(imagesAcabados, {
+                    imageSize:  "cover",
+                    loop:       true,
+                    container:  document.querySelector('#chocolat_container'),
+                    afterClose: function () {
+                        $("#chocolat_overlay").css("z-index", 0)
+                        $("#chocolat_wrapper").css("z-index", 0)
+                        $("#chocolat_wrapper").css("opacity", 0)
+                    },
+                    afterImageLoad: function () {
+                        parseLBAcabado(JSON.parse(imagesAcabados[apiAcabados.current()].title))
+                    }
+                })
+
+                apiAcabados = instanceAcabados.api
+            }
+
+            document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiAcabados.close()
+            })
+
+            document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiAcabados.prev()
+            })
+
+            document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiAcabados.next()
+            })
+
+            $("#chocolat_overlay").css("z-index", 999)
+            $("#chocolat_wrapper").css("z-index", 1000)
+            $("#chocolat_wrapper").css("opacity", 1)
+
+            apiAcabados.open(indexClicked)
+        })
+
+        // SINGLE ACABADO - Lightbox galería
+        $("body").on("click", ".chocolat-acabado-galeria", function(e){
+            e.preventDefault()
+
+            if (instanceColoresAcabados){
+                apiColoresAcabados.destroy()
+            }
+
+            if (instanceGaleriaAcabado){
+                apiGaleriaAcabado.destroy()
+            }
+
+            if (instanceGaleriaCatalogo){
+                apiGaleriaCatalogo.destroy()
+            }
+
+            let index = 0
+            let indexClicked = 0
+            let itemClicked = $(this).data("link")
+
+            $("#chocolat_wrapper").removeClass("lb_coleccion_options")
+            $("#chocolat_wrapper").addClass("lb_galeria")
+
+            $(".chocolat-acabado-galeria").each(function(item){
+                if (!checkDuplicatesGaleriaAcabado.includes($(this).data("link"))) {
+                    const galeriaInfo = {
+                        acabado_id: $(this).data("id") ? $(this).data("id") : false,
+                        acabado_name: $(this).data("acabado_name") ? $(this).data("acabado_name") : false,
+                        acabado_slug: $(this).data("acabado_slug") ? $(this).data("acabado_slug") : false,
+                        acabado_url: $(this).data("acabado_url") ? $(this).data("acabado_url") : false,
+                        galeria_image_id: $(this).data("link") ? $(this).data("link") : false,
+                        galeria_favorito:  $(this).data("favorito") ? $(this).data("favorito") : 0,
+                    }
+
+                    imagesGaleriaAcabado.push({
+                        src: $(this).data("link"),
+                        title: JSON.stringify(galeriaInfo),
+                    })
+
+                    checkDuplicatesGaleriaAcabado.push($(this).data("link"))
+                }
+            })
+
+            imagesGaleriaAcabado.forEach((item) => {
+                if (item.src == itemClicked){
+                    indexClicked = index
+                    return
+                }
+
+                index++
+            })
+
+            if (typeof instanceGaleriaAcabado === "undefined") {
+                instanceGaleriaAcabado = Chocolat(imagesGaleriaAcabado, {
+                    imageSize:  "cover",
+                    loop:       true,
+                    container:  document.querySelector('#chocolat_container'),
+                    afterClose: function () {
+                        $("#chocolat_overlay").css("z-index", 0)
+                        $("#chocolat_wrapper").css("z-index", 0)
+                        $("#chocolat_wrapper").css("opacity", 0)
+                    },
+                    afterImageLoad: function () {
+                        parseLBGaleriaAcabaado(JSON.parse(imagesGaleriaAcabado[apiGaleriaAcabado.current()].title))
+                    }
+                })
+
+                apiGaleriaAcabado = instanceGaleriaAcabado.api
+            }
+
+            document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaAcabado.close()
+            })
+
+            document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaAcabado.prev()
+            })
+
+            document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaAcabado.next()
+            })
+
+            $("#chocolat_overlay").css("z-index", 999)
+            $("#chocolat_wrapper").css("z-index", 1000)
+            $("#chocolat_wrapper").css("opacity", 1)
+
+            apiGaleriaAcabado.open(indexClicked)
+        })
+
+        // SINGLE COLECCION - Lightbox galería
+        $("body").on("click", ".chocolat-galeria", function(e){
+            e.preventDefault()
+
+            if (instanceColores){
+                apiColores.destroy()
+            }
+
+            if (instanceAcabados){
+                apiAcabados.destroy()
+            }
+
+            if (instanceGaleriaCatalogo){
+                apiGaleriaCatalogo.destroy()
+            }
+
+            let index = 0
+            let indexClicked = 0
+            let itemClicked = $(this).data("link")
+
+            $("#chocolat_wrapper").removeClass("lb_coleccion_options")
+            $("#chocolat_wrapper").addClass("lb_galeria")
+
+            $(".chocolat-galeria").each(function(item){
+                if (!checkDuplicatesGaleriaColeccion.includes($(this).data("link"))) {
+                    const galeriaInfo = {
+                        coleccion_id: $(this).data("id") ? $(this).data("id") : false,
+                        coleccion_name: $(this).data("coleccion_name") ? $(this).data("coleccion_name") : false,
+                        coleccion_slug: $(this).data("coleccion_slug") ? $(this).data("coleccion_slug") : false,
+                        coleccion_url: $(this).data("coleccion_url") ? $(this).data("coleccion_url") : false,
+                        familia_id: $(this).data("familia_id") ? $(this).data("familia_id") : false,
+                        familia_slug: $(this).data("familia_slug") ? $(this).data("familia_slug") : false,
+                        familia_name: $(this).data("familia_name") ? $(this).data("familia_name") : false,
+                        familia_url: $(this).data("familia_url") ? $(this).data("familia_url") : false,
+                        galeria_image_id: $(this).data("galeria_image_id") ? $(this).data("galeria_image_id") : false,
+                        galeria_favorito:  $(this).data("favorito") ? $(this).data("favorito") : 0,
+                    }
+
+                    imagesGaleriaColeccion.push({
+                        src: $(this).data("link"),
+                        title: JSON.stringify(galeriaInfo),
+                    })
+
+                    checkDuplicatesGaleriaColeccion.push($(this).data("link"))
+                }
+            })
+
+            imagesGaleriaColeccion.forEach((item) => {
+                if (item.src == itemClicked){
+                    indexClicked = index
+                    return
+                }
+
+                index++
+            })
+
+            if (typeof instanceGaleriaColeccion === "undefined") {
+                instanceGaleriaColeccion = Chocolat(imagesGaleriaColeccion, {
+                    imageSize:  "cover",
+                    loop:       true,
+                    container:  document.querySelector('#chocolat_container'),
+                    afterClose: function () {
+                        $("#chocolat_overlay").css("z-index", 0)
+                        $("#chocolat_wrapper").css("z-index", 0)
+                        $("#chocolat_wrapper").css("opacity", 0)
+                    },
+                    afterImageLoad: function () {
+                        parseLBGaleriaColeccion(JSON.parse(imagesGaleriaColeccion[apiGaleriaColeccion.current()].title))
+                    }
+                })
+
+                apiGaleriaColeccion = instanceGaleriaColeccion.api
+            }
+
+            document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaColeccion.close()
+            })
+
+            document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaColeccion.prev()
+            })
+
+            document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaColeccion.next()
+            })
+
+            $("#chocolat_overlay").css("z-index", 999)
+            $("#chocolat_wrapper").css("z-index", 1000)
+            $("#chocolat_wrapper").css("opacity", 1)
+
+            apiGaleriaColeccion.open(indexClicked)
+        })
+
+        // SINGLE BLOG - Lightbox galería
+        $("body").on("click", ".chocolat-blog-gallery", function(e){
+            e.preventDefault()
+
+            if (instanceColores){
+                apiColores.destroy()
+            }
+
+            if (instanceAcabados){
+                apiAcabados.destroy()
+            }
+
+            if (instanceGaleriaColeccion){
+                apiGaleriaColeccion.destroy()
+            }
+
+            if (instanceGaleriaCatalogo){
+                apiGaleriaCatalogo.destroy()
+            }
+
+            $("#chocolat_wrapper").removeClass("lb_coleccion_options")
+            $("#chocolat_wrapper").addClass("lb_galeria")
+
+            let index = 0
+            let indexClicked = 0
+            let itemClicked = $(this).data("link")
+
+            $(".chocolat-blog-gallery").each(function(item){
+                imagesGaleriaBlog.push({
+                    src: $(this).data("link"),
+                    title: $(this).attr("title") ? $(this).attr("title") : ""
+                })
+            })
+
+            imagesGaleriaBlog.forEach((item) => {
+                if (item.src == itemClicked){
+                    indexClicked = index
+                    return
+                }
+
+                index++
+            })
+
+            if (typeof instanceGaleriaBlog === "undefined") {
+                instanceGaleriaBlog = Chocolat(imagesGaleriaBlog, {
+                    imageSize:  "cover",
+                    loop:       true,
+                    container:  document.querySelector('#chocolat_container'),
+                    afterClose: function () {
+                        $("#chocolat_overlay").css("z-index", 0)
+                        $("#chocolat_wrapper").css("z-index", 0)
+                        $("#chocolat_options").css("opacity", 0)
+                    },
+                    afterImageLoad: function () {
+                        const content = document.querySelector(".lb_galeria .chocolat-description")
+                        content.style.visibility = "visible"
+                    }
+                })
+
+                apiGaleriaBlog = instanceGaleriaBlog.api
+            }
+
+            document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaBlog.close()
+            })
+
+            document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaBlog.prev()
+            })
+
+            document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                e.preventDefault()
+                apiGaleriaBlog.next()
+            })
+
+            $("#chocolat_overlay").css("z-index", 999)
+            $("#chocolat_wrapper").css("z-index", 1000)
+            $("#chocolat_options").css("opacity", 1)
+
+            apiGaleriaBlog.open(indexClicked)
+        })
+
+        // SINGLE BLOG - Galeria
+        if ($("#kp_blog_gallery").length > 0) {
+            $('.kp_blog_gallery_wrapper').on("init", function (event, slick, direction) {
+                //Add animation galeria
+                //addObserver2Wrapper(document.querySelectorAll(".blog_galeria_item_wrapper"))
+            })
+
+            initBlogGalerias()
+        }
+
+        // COLECCIONESC -NUEVO GRID
+        const coleccionGridItemWidth = $(".coleccion_image").width()
+        const coleccionGridItemHeight = [$(".coleccion_image.altura-0").height(), $(".coleccion_image.altura-1").height(), $(".coleccion_image.altura-2").height(), $(".coleccion_image.altura-3").height(), $(".coleccion_image.altura-4").height()]
+
+        $('.coleccion').hover(function() {
+            let id = $(this).data("id")
+            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+            $(`#flecha_coleccion-${id}`).addClass("roll_over")
+            $(`#flecha_coleccion_small-${id}`).addClass("roll_out")
+            $(`#tag_coleccion-${id}`).addClass("roll_over")
+
+            const animacionSource = {
+                marginTop:   0,
+                marginLeft:  0,
+                marginRight: 0,
+                width:       `${coleccionGridItemWidth + 64}px`,
+                height: `${altura + 32}px`
+            }
+
+            $(`#image_coleccion-${id}`).stop().animate(animacionSource, 600)
+        }, function() {
+            let id = $(this).data("id")
+            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+            $(`#flecha_coleccion-${id}`).removeClass("roll_over")
+            $(`#flecha_coleccion_small-${id}`).removeClass("roll_out")
+            $(`#tag_coleccion-${id}`).removeClass("roll_over")
+
+            const animacionTarget = {
+                marginTop:   "32px",
+                marginLeft:  "32px",
+                marginRight: "32px",
+                width:       `${coleccionGridItemWidth}px`,
+                height: `${altura}px`
+            }
+
+            $(`#image_coleccion-${id}`).stop().animate(animacionTarget, 600)
+        })
+
+        // ARCHIVE COLECCION - LOAD POSTS WITH SCROLL
+        if ($(".tax-familia_productos, .single-coleccion, .home").length > 0) {
+            if ($(".home").length > 0) {
+                if (screenWidth < 1370 && screenWidth > 1080) {
+                    $(".colecciones_grid").children().last().remove()
+                    $(".colecciones_grid").children().last().remove()
+                }
+            }
+
+            //masonry colecciones
+            let $grid = $('.colecciones_grid').packery({
+                itemSelector: '.coleccion_wrapper',
+                gutter:24
+            })
+        }
+
+        //FAMILIA NUEVO GRID
+        if ($(".tax-familia_productos").length > 0){
+            //masonry colecciones
+            let $grid = $('.colecciones_grid').packery({
+                itemSelector: '.coleccion_wrapper',
+                gutter:24,
+                stamp: ".stamp"
+            })
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_get_coleccion_by_taxonomy",
+                    security: customKPAjaxObject.security,
+                    taxonomyId: $("#colecciones_taxonomia").data("id"),
+                    coleccionIds: $("#colecciones_taxonomia").data("ids"),
+                },
+                success: function (response) {
+                    if (response.status && response.results && Array.isArray(response.results) && response.results.length) {
+                        let html = ""
+                        let alturasUsadas = []
+                        let alturaRandom
+                        let counter = 0
+
+                        response.results.forEach((coleccion) => {
+                            alturaRandom = getRandomAnimation(0, 4, alturasUsadas)
+                            alturasUsadas.push(alturaRandom)
+
+                            if (alturasUsadas.length == 5) {
+                                alturasUsadas = []
+                            }
+
+                            //altura primera fila
+                            if (counter < masonry){
+                                altura = counter % 2 == 0 ? 0 : 1
+                            }else{
+                                altura = alturaRandom
+                            }
+
+                            html += `<div class='coleccion_wrapper altura-${altura} ${counter < masonry ? 'stamp' : ''}'>`
+                            html += `<div class='coleccion' data-id='${coleccion.coleccion_id}'>`
+                            html += `<div class='coleccion_image_wrapper'>`
+                            html += `<div class='coleccion_image altura-${altura}' id='image_coleccion-${coleccion.coleccion_id}' data-animacion='${altura}'>`
+                            html += `<a href='${coleccion.coleccion_url}' title='${coleccion.coleccion_name}' class='kp_overlay'>${coleccion.image}</a>`
+                            html += `</div>`
+
+                            if (coleccion.tags) {
+                                html += `<div class="coleccion_tag" id="tag_coleccion-${coleccion.coleccion_id}">${coleccion.tags}</div>`
+                            }
+
+                            html += `<a href='#' class='kp_show_gallery' data-id='${coleccion.coleccion_id}' data-familia_slug='${coleccion.etiqueta_destacada_slug}' data-familia_name='${coleccion.etiqueta_destacada}'><span class='camera_white'></span></a>`
+                            html += `</div>`
+
+                            html += `<div class='coleccion_content'>`
+                            html += `<h2>`
+                            html += `<a href='${coleccion.coleccion_url}' title='${coleccion.coleccion_name}' class='coleccion_title ellipsis-1'>`
+                            html += `<span class="coleccion_title_title">${coleccion.coleccion_name}</span>`
+                            html += `</a>`
+
+                            html += `<span id='flecha_coleccion-${coleccion.coleccion_id}' class='arrow_to_right_large'></span>`
+                            html += `<span id='flecha_coleccion_small-${coleccion.coleccion_id}' class='arrow_to_right'></span>`
+                            html += `</h2>`
+                            html += `<span class='coleccion_familia'>${coleccion.etiqueta_destacada}</span>`
+                            html += `</div>`
+                            html += `</div>`
+                            html += `</div>`
+
+                            counter++
+                        })
+
+                        let $moreItems = $(html)
+
+                        $grid.append($moreItems).packery('appended', $moreItems)
+
+                        // COLECCIONESC -NUEVO GRID
+                        const coleccionGridItemWidth = $(".coleccion_image").width()
+                        const coleccionGridItemHeight = [$(".coleccion_image.altura-0").height(), $(".coleccion_image.altura-1").height(), $(".coleccion_image.altura-2").height(), $(".coleccion_image.altura-3").height(), $(".coleccion_image.altura-4").height()]
+
+                        $('.coleccion').hover(function () {
+                            let id = $(this).data("id")
+                            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                            $(`#flecha_coleccion-${id}`).addClass("roll_over")
+                            $(`#flecha_coleccion_small-${id}`).addClass("roll_out")
+                            $(`#tag_coleccion-${id}`).addClass("roll_over")
+
+                            const animacionSource = {
+                                marginTop: 0,
+                                marginLeft: 0,
+                                marginRight: 0,
+                                width: `${coleccionGridItemWidth + 64}px`,
+                                height: `${altura + 32}px`
+                            }
+
+                            $(`#image_coleccion-${id}`).stop().animate(animacionSource, 600)
+                        }, function () {
+                            let id = $(this).data("id")
+                            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                            $(`#flecha_coleccion-${id}`).removeClass("roll_over")
+                            $(`#flecha_coleccion_small-${id}`).removeClass("roll_out")
+                            $(`#tag_coleccion-${id}`).removeClass("roll_over")
+
+                            const animacionTarget = {
+                                marginTop: "32px",
+                                marginLeft: "32px",
+                                marginRight: "32px",
+                                width: `${coleccionGridItemWidth}px`,
+                                height: `${altura}px`
+                            }
+
+                            $(`#image_coleccion-${id}`).stop().animate(animacionTarget, 600)
+                        })
+                    }
+                }
+            })
+        }
+
+        if ($(".post-type-archive-coleccion").length > 0){
+            //masonry colecciones
+            let $grid = $('.colecciones_grid').packery({
+                itemSelector: '.coleccion_wrapper',
+                gutter:24,
+                stamp: ".stamp"
+            })
+
+            let pageNumber = 1
+            let pageSize = 12
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_get_coleccion_paged",
+                    security: customKPAjaxObject.security,
+                    page: pageNumber,
+                    page_size: pageSize
+                },
+                success: function (response) {
+                    if (response.status && response.results && Array.isArray(response.results) && response.results.length) {
+                        let html = ""
+                        let alturasUsadas = []
+                        let alturaRandom
+                        let counter = 0
+
+                        response.results.forEach((coleccion) => {
+                            alturaRandom = getRandomAnimation(0, 4, alturasUsadas)
+                            alturasUsadas.push(alturaRandom)
+
+                            if (alturasUsadas.length == 5) {
+                                alturasUsadas = []
+                            }
+
+                            //altura primera fila
+                            if (counter < masonry){
+                                altura = counter % 2 == 0 ? 0 : 1
+                            }else{
+                                altura = alturaRandom
+                            }
+
+                            html += `<div class='coleccion_wrapper altura-${altura} ${counter < masonry ? 'stamp' : ''}'>`
+                            html += `<div class='coleccion' data-id='${coleccion.coleccion_id}'>`
+                            html += `<div class='coleccion_image_wrapper'>`
+                            html += `<div class='coleccion_image altura-${altura}' id='image_coleccion-${coleccion.coleccion_id}' data-animacion='${altura}'>`
+                            html += `<a href='${coleccion.coleccion_url}' title='${coleccion.coleccion_name}' class='kp_overlay'>${coleccion.image}</a>`
+                            html += `</div>`
+
+                            if (coleccion.tags) {
+                                html += `<div class="coleccion_tag" id="tag_coleccion-${coleccion.coleccion_id}">${coleccion.tags}</div>`
+                            }
+
+                            html += `<a href='#' class='kp_show_gallery' data-id='${coleccion.coleccion_id}' data-familia_slug='${coleccion.etiqueta_destacada_slug}' data-familia_name='${coleccion.etiqueta_destacada}'><span class='camera_white'></span></a>`
+                            html += `</div>`
+
+                            html += `<div class='coleccion_content'>`
+                            html += `<h2>`
+                            html += `<a href='${coleccion.coleccion_url}' title='${coleccion.coleccion_name}' class='coleccion_title ellipsis-1'>`
+                            html += `<span class="coleccion_title_title">${coleccion.coleccion_name}</span>`
+                            html += `</a>`
+
+                            html += `<span id='flecha_coleccion-${coleccion.coleccion_id}' class='arrow_to_right_large'></span>`
+                            html += `<span id='flecha_coleccion_small-${coleccion.coleccion_id}' class='arrow_to_right'></span>`
+                            html += `</h2>`
+                            html += `<span class='coleccion_familia'>${coleccion.etiqueta_destacada}</span>`
+                            html += `</div>`
+                            html += `</div>`
+                            html += `</div>`
+
+                            counter++
+                        })
+
+                        let $moreItems = $(html)
+
+                        $grid.append($moreItems).packery('appended', $moreItems)
+
+                        // COLECCIONESC -NUEVO GRID
+                        const coleccionGridItemWidth = $(".coleccion_image").width()
+                        const coleccionGridItemHeight = [$(".coleccion_image.altura-0").height(), $(".coleccion_image.altura-1").height(), $(".coleccion_image.altura-2").height(), $(".coleccion_image.altura-3").height(), $(".coleccion_image.altura-4").height()]
+
+                        $('.coleccion').hover(function () {
+                            let id = $(this).data("id")
+                            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                            $(`#flecha_coleccion-${id}`).addClass("roll_over")
+                            $(`#flecha_coleccion_small-${id}`).addClass("roll_out")
+                            $(`#tag_coleccion-${id}`).addClass("roll_over")
+
+                            const animacionSource = {
+                                marginTop: 0,
+                                marginLeft: 0,
+                                marginRight: 0,
+                                width: `${coleccionGridItemWidth + 64}px`,
+                                height: `${altura + 32}px`
+                            }
+
+                            $(`#image_coleccion-${id}`).stop().animate(animacionSource, 600)
+                        }, function () {
+                            let id = $(this).data("id")
+                            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                            $(`#flecha_coleccion-${id}`).removeClass("roll_over")
+                            $(`#flecha_coleccion_small-${id}`).removeClass("roll_out")
+                            $(`#tag_coleccion-${id}`).removeClass("roll_over")
+
+                            const animacionTarget = {
+                                marginTop: "32px",
+                                marginLeft: "32px",
+                                marginRight: "32px",
+                                width: `${coleccionGridItemWidth}px`,
+                                height: `${altura}px`
+                            }
+
+                            $(`#image_coleccion-${id}`).stop().animate(animacionTarget, 600)
+                        })
+                    }
+                }
+            })
+
+            let scrolling = false
+            let stopScrolling = false
+
+            window.onscroll = () => {
+                if(!stopScrolling && !scrolling && document.querySelector('#scroll_bottom') && isScrolledIntoView(document.querySelector('#scroll_bottom'))){
+                    if (!scrolling){
+                        scrolling = true
+                    }
+
+                    pageNumber++
+
+                    $.ajax({
+                        type: 'post',
+                        url: customKPAjaxObject.ajax_url,
+                        dataType: "json",
+                        data: {
+                            action: "ws_get_coleccion_paged",
+                            security: customKPAjaxObject.security,
+                            page: pageNumber,
+                            page_size: pageSize
+                        },
+                        success:  function (response) {
+                            if (response.status && response.results && Array.isArray(response.results) && response.results.length) {
+                                let html = ""
+                                let alturasUsadas = []
+                                let alturaRandom
+
+                                response.results.forEach((coleccion) => {
+                                    alturaRandom = getRandomAnimation(0, 4, alturasUsadas)
+                                    alturasUsadas.push(alturaRandom)
+
+                                    if (alturasUsadas.length == 5) {
+                                        alturasUsadas = []
+                                    }
+
+                                    html += `<div class='coleccion_wrapper altura-${alturaRandom}'>`
+                                        html += `<div class='coleccion' data-id='${coleccion.coleccion_id}'>`
+                                            html += `<div class='coleccion_image_wrapper'>`
+                                                html += `<div class='coleccion_image altura-${alturaRandom}' id='image_coleccion-${coleccion.coleccion_id}' data-animacion='${alturaRandom}'>`
+                                                    html += `<a href='${coleccion.coleccion_url}' title='${coleccion.coleccion_name}' class='kp_overlay'>${coleccion.image}</a>`
+                                                html += `</div>`
+
+                                                if(coleccion.tags) {
+                                                    html += `<div class="coleccion_tag" id="tag_coleccion-${coleccion.coleccion_id}">${coleccion.tags}</div>`
+                                                }
+
+                                                html += `<a href='#' class='kp_show_gallery' data-id='${coleccion.coleccion_id}' data-familia_slug='${coleccion.etiqueta_destacada_slug}' data-familia_name='${coleccion.etiqueta_destacada}'><span class='camera_white'></span></a>`
+                                            html += `</div>`
+
+                                            html += `<div class='coleccion_content'>`
+                                                html += `<h2>`
+                                                    html += `<a href='${coleccion.coleccion_url}' title='${coleccion.coleccion_name}' class='coleccion_title ellipsis-1'>`
+                                                        html += `<span class="coleccion_title_title">${coleccion.coleccion_name}</span>`
+                                                    html += `</a>`
+
+                                                    html += `<span id='flecha_coleccion-${coleccion.coleccion_id}' class='arrow_to_right_large'></span>`
+                                                    html += `<span id='flecha_coleccion_small-${coleccion.coleccion_id}' class='arrow_to_right'></span>`
+                                                html += `</h2>`
+                                                html += `<span class='coleccion_familia'>${coleccion.etiqueta_destacada}</span>`
+                                            html += `</div>`
+                                        html += `</div>`
+                                    html += `</div>`
+                                })
+
+                                let $moreItems = $(html)
+
+                                $grid.append($moreItems).packery('appended', $moreItems)
+
+                                // COLECCIONESC -NUEVO GRID
+                                const coleccionGridItemWidth = $(".coleccion_image").width()
+                                const coleccionGridItemHeight = [$(".coleccion_image.altura-0").height(), $(".coleccion_image.altura-1").height(), $(".coleccion_image.altura-2").height(), $(".coleccion_image.altura-3").height(), $(".coleccion_image.altura-4").height()]
+
+                                $('.coleccion').hover(function() {
+                                    let id = $(this).data("id")
+                                    let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                                    $(`#flecha_coleccion-${id}`).addClass("roll_over")
+                                    $(`#flecha_coleccion_small-${id}`).addClass("roll_out")
+                                    $(`#tag_coleccion-${id}`).addClass("roll_over")
+
+                                    const animacionSource = {
+                                        marginTop:   0,
+                                        marginLeft:  0,
+                                        marginRight: 0,
+                                        width:       `${coleccionGridItemWidth + 64}px`,
+                                        height: `${altura + 32}px`
+                                    }
+
+                                    $(`#image_coleccion-${id}`).stop().animate(animacionSource, 600)
+                                }, function() {
+                                    let id = $(this).data("id")
+                                    let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                                    $(`#flecha_coleccion-${id}`).removeClass("roll_over")
+                                    $(`#flecha_coleccion_small-${id}`).removeClass("roll_out")
+                                    $(`#tag_coleccion-${id}`).removeClass("roll_over")
+
+                                    const animacionTarget = {
+                                        marginTop:   "32px",
+                                        marginLeft:  "32px",
+                                        marginRight: "32px",
+                                        width:       `${coleccionGridItemWidth}px`,
+                                        height: `${altura}px`
+                                    }
+
+                                    $(`#image_coleccion-${id}`).stop().animate(animacionTarget, 600)
+                                })
+
+                                scrolling = false
+                            }else{
+                                stopScrolling = true
+                                $("#scroll_bottom").html("")
+                                $("#scroll_bottom").css("marginBottom", "0")
+                            }
+                        }
+                    })
+                }
+            }
+        }
+
+        // ARCHIVE ACABADO - LOAD POSTS WITH SCROLL
+        if ($(".post-type-archive-acabado").length > 0){
+            //masonry colecciones
+            let $grid = $('.colecciones_grid').packery({
+                itemSelector: '.coleccion_wrapper',
+                gutter:24,
+                stamp: ".stamp"
+            })
+
+            let pageNumber = 1
+            let pageSize = 12
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_get_acabado_paged",
+                    security: customKPAjaxObject.security,
+                    page: pageNumber,
+                    page_size: pageSize
+                },
+                success: function (response) {
+                    console.log(response)
+                    if (response.status && response.results && Array.isArray(response.results) && response.results.length) {
+                        let html = ""
+                        let alturasUsadas = []
+                        let alturaRandom
+                        let counter = 0
+
+                        response.results.forEach((acabado) => {
+                            alturaRandom = getRandomAnimation(0, 4, alturasUsadas)
+                            alturasUsadas.push(alturaRandom)
+
+                            if (alturasUsadas.length == 5) {
+                                alturasUsadas = []
+                            }
+
+                            alturaRandom = 3
+
+                            //altura primera fila
+                            //if (counter < masonry){
+                            //    altura = counter % 2 == 0 ? 0 : 1
+                            //}else{
+                            altura = alturaRandom
+                            //}
+
+                            html += `<div class='coleccion_wrapper altura-${altura} ${counter < masonry ? 'stamp' : ''}'>`
+                                html += `<div class='coleccion' data-id='${acabado.acabado_id}'>`
+                                    html += `<div class='coleccion_image_wrapper'>`
+                                        html += `<div class='coleccion_image altura-${altura}' id='image_coleccion-${acabado.acabado_id}' data-animacion='${altura}'>`
+                                            html += `<a href='${acabado.acabado_url}' title='${acabado.acabado_name}'>${acabado.image}</a>`
+                                        html += `</div>`
+
+                                        if (acabado.tags) {
+                                            html += `<div class="coleccion_tag" id="tag_coleccion-${acabado.acabado_id}">${acabado.tags}</div>`
+                                        }
+
+                                        html += `<a href='#' class='kp_show_gallery_acabado' data-id='${acabado.acabado_id}'><span class='camera_black'></span></a>`
+                                    html += `</div>`
+
+
+                            html += `<div class='coleccion_content'>`
+                            html += `<h2>`
+                            html += `<a href='${acabado.acabado_url}' title='${acabado.acabado_name}' class='coleccion_title ellipsis-1'>`
+                            html += `<span class="coleccion_title_title">${acabado.acabado_name}</span>`
+                            html += `</a>`
+
+                            html += `<span id='flecha_coleccion-${acabado.acabado_id}' class='arrow_to_right_large'></span>`
+                            html += `<span id='flecha_coleccion_small-${acabado.acabado_id}' class='arrow_to_right'></span>`
+                            html += `</h2>`
+                            html += `</div>`
+                            html += `</div>`
+                            html += `</div>`
+
+                            counter++
+                        })
+
+                        let $moreItems = $(html)
+
+                        $grid.append($moreItems).packery('appended', $moreItems)
+
+                        // Acabados -NUEVO GRID
+                        const coleccionGridItemWidth = $(".coleccion_image").width()
+                        const coleccionGridItemHeight = [$(".coleccion_image.altura-0").height(), $(".coleccion_image.altura-1").height(), $(".coleccion_image.altura-2").height(), $(".coleccion_image.altura-3").height(), $(".coleccion_image.altura-4").height()]
+
+                        $('.coleccion').hover(function () {
+                            let id = $(this).data("id")
+                            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+
+                            $(`#flecha_coleccion-${id}`).addClass("roll_over")
+                            $(`#flecha_coleccion_small-${id}`).addClass("roll_out")
+                            $(`#tag_coleccion-${id}`).addClass("roll_over")
+
+                            const animacionSource = {
+                                marginTop: 0,
+                                marginLeft: 0,
+                                marginRight: 0,
+                                width: `${coleccionGridItemWidth + 64}px`,
+                                height: `${altura + 32}px`
+                            }
+
+                            $(`#image_coleccion-${id}`).stop().animate(animacionSource, 600)
+                        }, function () {
+                            let id = $(this).data("id")
+                            let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+
+                            $(`#flecha_coleccion-${id}`).removeClass("roll_over")
+                            $(`#flecha_coleccion_small-${id}`).removeClass("roll_out")
+                            $(`#tag_coleccion-${id}`).removeClass("roll_over")
+
+                            const animacionTarget = {
+                                marginTop: "32px",
+                                marginLeft: "32px",
+                                marginRight: "32px",
+                                width: `${coleccionGridItemWidth}px`,
+                                height: `${altura}px`
+                            }
+
+                            $(`#image_coleccion-${id}`).stop().animate(animacionTarget, 600)
+                        })
+
+                        scrolling = false
+                    } else {
+                        stopScrolling = true
+                        $("#scroll_bottom").html("")
+                        $("#scroll_bottom").css("marginBottom", "0")
+                    }
+                }
+            })
+
+            let scrolling = false
+            let stopScrolling = false
+
+            window.onscroll = () => {
+                if(!stopScrolling && !scrolling && document.querySelector('#scroll_bottom') && isScrolledIntoView(document.querySelector('#scroll_bottom'))){
+                    if (!scrolling){
+                        scrolling = true
+                    }
+
+                    pageNumber++
+
+                    $.ajax({
+                        type: 'post',
+                        url: customKPAjaxObject.ajax_url,
+                        dataType: "json",
+                        data: {
+                            action: "ws_get_acabado_paged",
+                            security: customKPAjaxObject.security,
+                            page: pageNumber,
+                            page_size: pageSize
+                        },
+                        success:  function (response) {
+                            console.log(response)
+                            if (response.status && response.results && Array.isArray(response.results) && response.results.length) {
+                                let html = ""
+                                let alturasUsadas = []
+                                let alturaRandom
+
+                                response.results.forEach((acabado) => {
+                                    alturaRandom = getRandomAnimation(0, 4, alturasUsadas)
+                                    alturasUsadas.push(alturaRandom)
+
+                                    if (alturasUsadas.length == 5) {
+                                        alturasUsadas = []
+                                    }
+
+                                    alturaRandom = 3
+
+                                    html += `<div class='coleccion_wrapper altura-${alturaRandom}'>`
+                                        html += `<div class='coleccion' data-id='${acabado.acabado_id}'>`
+                                            html += `<div class='coleccion_image_wrapper'>`
+                                                html += `<div class='coleccion_image altura-${alturaRandom}' id='image_coleccion-${acabado.acabado_id}' data-animacion='${alturaRandom}'>`
+                                                    html += `<a href='${acabado.acabado_url}' title='${acabado.acabado_name}'>${acabado.image}</a>`
+                                                html += `</div>`
+
+                                                if (acabado.tags) {
+                                                    html += `<div class="coleccion_tag" id="tag_coleccion-${acabado.acabado_id}">${acabado.tags}</div>`
+                                                }
+
+                                                html += `<a href='#' class='kp_show_gallery_acabado' data-id='${acabado.acabado_id}'><span class='camera_black'></span></a>`
+                                            html += `</div>`
+
+                                            html += `<div class='coleccion_content'>`
+                                                html += `<h2>`
+                                                    html += `<a href='${acabado.acabado_url}' title='${acabado.acabado_name}' class='coleccion_title ellipsis-1'>`
+                                                        html += `<span class="coleccion_title_title">${acabado.acabado_name}</span>`
+                                                    html += `</a>`
+
+                                                    html += `<span id='flecha_coleccion-${acabado.acabado_id}' class='arrow_to_right_large'></span>`
+                                                    html += `<span id='flecha_coleccion_small-${acabado.acabado_id}' class='arrow_to_right'></span>`
+                                                html += `</h2>`
+                                            html += `</div>`
+                                        html += `</div>`
+                                    html += `</div>`
+                                })
+
+                                let $moreItems = $(html)
+
+                                $grid.append($moreItems).packery('appended', $moreItems)
+
+                                // Acabados -NUEVO GRID
+                                const coleccionGridItemWidth = $(".coleccion_image").width()
+                                const coleccionGridItemHeight = [$(".coleccion_image.altura-0").height(), $(".coleccion_image.altura-1").height(), $(".coleccion_image.altura-2").height(), $(".coleccion_image.altura-3").height(), $(".coleccion_image.altura-4").height()]
+
+
+                                $('.coleccion').hover(function() {
+                                    let id = $(this).data("id")
+                                    let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                                    $(`#flecha_coleccion-${id}`).addClass("roll_over")
+                                    $(`#flecha_coleccion_small-${id}`).addClass("roll_out")
+                                    $(`#tag_coleccion-${id}`).addClass("roll_over")
+
+                                    const animacionSource = {
+                                        marginTop:   0,
+                                        marginLeft:  0,
+                                        marginRight: 0,
+                                        width:       `${coleccionGridItemWidth + 64}px`,
+                                        height: `${altura + 32}px`
+                                    }
+
+                                    $(`#image_coleccion-${id}`).stop().animate(animacionSource, 600)
+                                }, function() {
+                                    let id = $(this).data("id")
+                                    let altura = coleccionGridItemHeight[$(`#image_coleccion-${id}`).data("animacion")]
+                                    $(`#flecha_coleccion-${id}`).removeClass("roll_over")
+                                    $(`#flecha_coleccion_small-${id}`).removeClass("roll_out")
+                                    $(`#tag_coleccion-${id}`).removeClass("roll_over")
+
+                                    const animacionTarget = {
+                                        marginTop:   "32px",
+                                        marginLeft:  "32px",
+                                        marginRight: "32px",
+                                        width:       `${coleccionGridItemWidth}px`,
+                                        height: `${altura}px`
+                                    }
+
+                                    $(`#image_coleccion-${id}`).stop().animate(animacionTarget, 600)
+                                })
+
+                                scrolling = false
+                            }else{
+                                stopScrolling = true
+                                $("#scroll_bottom").html("")
+                                $("#scroll_bottom").css("marginBottom", "0")
+                            }
+                        }
+                    })
+                }
+            }
+        }
+
+        if ($(".single.single-post").length > 0) {
+            //masonry blog
+            let $gridBlog = $('#blog_wrapper').packery({
+                itemSelector: '.kp_blog_grid',
+                gutter: 48
+            })
+        }
+
+        if ($(".archive.category").length > 0) {
+            //masonry blog
+            let $gridBlog = $('#blog_wrapper').packery({
+                itemSelector: '.kp_blog_grid',
+                gutter: 48
+            })
+
+            //let scrolling = false
+            //let stopScrolling = false
+            /*
+            window.onscroll = () => {
+                if(!stopScrolling && !scrolling && document.querySelector('#scroll_bottom') && isScrolledIntoView(document.querySelector('#scroll_bottom'))){
+                    if (!scrolling){
+                        scrolling = true
+                    }
+
+                    let pageNumber = parseInt($("#blog_wrapper").attr("data-page"))
+                    let pageSize = 4
+
+                    $.ajax({
+                        type: 'post',
+                        url: customKPAjaxObject.ajax_url,
+                        dataType: "json",
+                        data: {
+                            action: "ws_get_blog_paged",
+                            security: customKPAjaxObject.security,
+                            page: pageNumber,
+                            page_size: pageSize,
+                            category: $("#blog_wrapper").data("category"),
+                            category_destacada: $("#blog_wrapper").data("category_destacada"),
+                        },
+                        success:  function (response) {
+                            if (response.status && response.results && Array.isArray(response.results) && response.results.length) {
+                                let html = ""
+                                let alturasUsadas = []
+                                let alturaRandom
+
+                                response.results.forEach((item) => {
+                                    alturaRandom = getRandomAnimation(0, 4, alturasUsadas)
+                                    alturasUsadas.push(alturaRandom)
+
+                                    if (alturasUsadas.length == 5) {
+                                        alturasUsadas = []
+                                    }
+
+                                    html+= `<div class="column mcb-column mcb-item-${uuidv4()} one-fourth column_column kp_blog_grid altura-${alturaRandom}">`
+                                        html+= `<div class="column_attr clearfix align_left mobile_align_left">`
+                                            html+= `<div class="kp_blog_grid_image">`
+                                                html+= `<div class='kp_section_blog_image_wrapper altura-${alturaRandom}' data-animacion='${alturaRandom}'>`
+                                                    html+= `<a href='${item.post_url}' title='${item.post_title}'>`
+                                                        html+= `<div class='kp_section_blog_featured_image_animation_wrapper'>`
+                                                            html+= item.image
+                                                        html+= `</div>`
+                                                    html+= `</a>`
+                                                html+= `</div>`
+                                            html+= `</div>`
+
+                                            html+= `<div class="kp_blog_grid_content">`
+                                                html+= `<h2><a href='${item.post_url}' title='${item.post_title}'>${item.post_title}</a></h2>`
+                                                html+= `<div class='kp_blog_content read-more js-read-more' data-rm-words='20' data-link='${item.post_url}'>`
+                                                    html+= `<p>${item.post_body}</p>`
+                                                html+= `</div>`
+                                            html+= `</div>`
+                                        html+= `</div>`
+                                    html+= `</div>`
+                                })
+
+                                let $moreItems = $(html)
+                                $gridBlog.append($moreItems).packery('appended', $moreItems)
+
+                                $("#blog_wrapper").attr("data-page", response.page)
+
+                                ReadMore.init()
+
+                                window.setTimeout(function() {
+                                    addObserver2Wrapper(document.querySelectorAll(".kp_section_blog_featured_image_animation_wrapper"))
+                                }, 0)
+
+                                scrolling = false
+                            }else{
+                                stopScrolling = true
+                                $("#scroll_bottom").html("")
+                                $("#scroll_bottom").css("marginBottom", "0")
+                            }
+                        }
+                    })
+                }
+            }
+            */
+        }
+
+        // ARCHIVE COLECCION - MOBILE FILTER
+        $("#colecciones_filter").select2({
+            placeholder: "",
+            theme:                   'classic',
+            dropdownAutoWidth:       true,
+            width:                   '100%',
+            allowClear:              false,
+            dropdownParent:          $("#colecciones_filter_select2"),
+            dropdownCssClass:        "select2-dropdown-wrapper",
+            selectionCssClass:       "select2-selection-wrapper",
+            minimumResultsForSearch: Infinity
+        })
+
+        // ARCHIVE COLECCION - MOBILE FILTER EVENT HANDLER
+        $("body").on("change", "#colecciones_filter", function(e){
+            e.preventDefault()
+
+            window.location = "/colecciones/" + $(this).val()
+        })
+
+        // ARCHIVE COLECCION - MOBILE FILTER EVENT HANDLER
+        $("body").on("click", ".filter_colecciones_wrapper label", function(e){
+            e.preventDefault()
+
+            $('#colecciones_filter').select2('open');
+        })
+
+        // SEARCH - EVENT HANDLER (search.php)
+        // subo placeholder top input results search
+        $("body").on("click", "form#results_search label", function(e){
+            let id = $(this).attr("id")
+            $(this).addClass("focus")
+            $("#term_search").focus()
+        })
+
+        // SEARCH - EVENT HANDLER (search.php)
+        $("body").on("change", "#term_search", function(){
+            if ($(this).val()){
+                $("#label_term_search").addClass("filled")
+            }else{
+                $("#label_term_search").removeClass("filled")
+            }
+        })
+
+        // SEARCH - EVENT HANDLER (search.php)
+        if ($("form#results_search").length > 0){
+            $("form#results_search input[type='text']").each(function(item) {
+                if ($(this).val()) {
+                    let id = $(this).attr("id")
+                    $(`#label_${id}`).addClass("focus")
+                }
+            })
+        }
+
+        // SEARCH - EVENT HANDLER (search.php)
+        $(document).on("select2:open", function(e){
+            setTimeout(function () {
+                document.querySelector(".select2-search__field").focus()
+            }, 500)
+        })
+
+        // SEARCH repeat from search page
+        $("body").on("click", ".re_search", function(e){
+            e.preventDefault()
+
+            if ($("#term_search").val()){
+                $("#results_search").submit()
+            }
+        })
+
+        $("body").on("click", ".kp_show_gallery", function(e){
+            e.preventDefault()
+
+            const coleccion_id = $(this).data("id") ? $(this).data("id") : false
+            const familia_slug = $(this).data("familia_slug") ? $(this).data("familia_slug") : false
+            const familia_name = $(this).data("familia_name") ? $(this).data("familia_name") : false
+            let imagesGaleriaCatalogo = []
+            let checkDuplicatesGaleriaCatalogo = []
+
+            if (!coleccion_id){
+                return false
+            }
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_get_coleccion_gallery",
+                    security: customKPAjaxObject.security,
+                    coleccion_id: coleccion_id,
+                    familia_slug: familia_slug,
+                    familia_name: familia_name,
+                },
+                success:  function (response) {
+                    if (response.status && response.result && Array.isArray(response.result) && response.result.length) {
+                        if (instanceColores){
+                            apiColores.destroy()
+                        }
+
+                        if (instanceAcabados){
+                            apiAcabados.destroy()
+                        }
+
+                        if (instanceGaleriaColeccion){
+                            apiGaleriaColeccion.destroy()
+                        }
+
+                        if (instanceGaleriaCatalogo){
+                            apiGaleriaCatalogo.destroy()
+                        }
+
+                        $("#chocolat_wrapper").removeClass("lb_coleccion_options")
+                        $("#chocolat_wrapper").addClass("lb_galeria")
+
+                        for(var i=0; i<response.result.length; i++){
+                            let item = response.result[i]
+
+                            if (!checkDuplicatesGaleriaCatalogo.includes(item.image_url)) {
+                                const galeriaInfo = {
+                                    coleccion_id:       item.coleccion_id ? item.coleccion_id : false,
+                                    coleccion_name:     item.coleccion_name ? item.coleccion_name : false,
+                                    coleccion_slug:     item.coleccion_slug ? item.coleccion_slug : false,
+                                    coleccion_url:     item.coleccion_url,
+                                    familia_slug:       item.familia_slug ? item.familia_slug : false,
+                                    familia_name:       item.familia_name ? item.familia_name : false,
+                                    familia_url:        item.familia_url ? item.familia_url : false,
+                                    galeria_image_id:   item.image_id ? item.image_id : false,
+                                    galeria_image_url:  item.image_url ? item.image_url : false,
+                                    galeria_image_name:  item.image_name ? item.image_name : false,
+                                    galeria_image_slug: item.image_slug ? item.image_slug : false,
+                                    galeria_favorito:   item.favorito ? item.favorito : 0,
+                                }
+
+                                imagesGaleriaCatalogo.push({
+                                    src: item.image_url,
+                                    title: JSON.stringify(galeriaInfo),
+                                })
+
+                                checkDuplicatesGaleriaCatalogo.push(item.image_url)
+                            }
+                        }
+
+                        instanceGaleriaCatalogo = Chocolat(imagesGaleriaCatalogo, {
+                            imageSize:  "cover",
+                            loop:       true,
+                            container:  document.querySelector('#chocolat_container'),
+                            afterClose: function () {
+                                $("#chocolat_overlay").css("z-index", 0)
+                                $("#chocolat_wrapper").css("z-index", 0)
+                                $("#chocolat_wrapper").css("opacity", 0)
+                            },
+                            afterImageLoad: function () {
+                                parseLBGaleriaCatalogo(JSON.parse(imagesGaleriaCatalogo[apiGaleriaCatalogo.current()].title))
+                            }
+                        })
+
+                        apiGaleriaCatalogo = instanceGaleriaCatalogo.api
+
+                        document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                            e.preventDefault()
+                            apiGaleriaCatalogo.close()
+                        })
+
+                        document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                            e.preventDefault()
+
+                            document.querySelector(".lb_galeria .chocolat-wrapper.chocolat-visible .chocolat-description").style.setProperty("visibility", "hidden", "important")
+                            apiGaleriaCatalogo.prev()
+                        })
+
+                        document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                            e.preventDefault()
+
+                            document.querySelector(".lb_galeria .chocolat-wrapper.chocolat-visible .chocolat-description").style.setProperty("visibility", "hidden", "important")
+                            apiGaleriaCatalogo.next()
+                        })
+
+                        $("#chocolat_overlay").css("z-index", 999)
+                        $("#chocolat_wrapper").css("z-index", 1000)
+                        $("#chocolat_wrapper").css("opacity", 1)
+
+                        apiGaleriaCatalogo.open(0)
+                    }
+                }
+            })
+        })
+
+        $("body").on("click", ".kp_show_gallery_acabado", function(e){
+            e.preventDefault()
+
+            const acabado_id = $(this).data("id") ? $(this).data("id") : false
+            let imagesGaleriaCatalogoAcabado = []
+            let checkDuplicatesGaleriaCatalogoAcabado = []
+
+            if (!acabado_id){
+                return false
+            }
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_get_acabado_gallery",
+                    security: customKPAjaxObject.security,
+                    acabado_id: acabado_id
+                },
+                success:  function (response) {
+                    console.log(response)
+                    if (response.status && response.result && Array.isArray(response.result) && response.result.length) {
+                        if (instanceColores){
+                            apiColores.destroy()
+                        }
+
+                        if (instanceAcabados){
+                            apiAcabados.destroy()
+                        }
+
+                        if (instanceGaleriaColeccion){
+                            apiGaleriaColeccion.destroy()
+                        }
+
+                        if (instanceGaleriaCatalogo){
+                            apiGaleriaCatalogo.destroy()
+                        }
+
+                        if (instanceGaleriaCatalogoAcabado){
+                            apiGaleriaCatalogoAcabado.destroy()
+                        }
+
+                        $("#chocolat_wrapper").removeClass("lb_coleccion_options")
+                        $("#chocolat_wrapper").addClass("lb_galeria")
+
+                        for(var i=0; i<response.result.length; i++){
+                            let item = response.result[i]
+
+                            if (!checkDuplicatesGaleriaAcabado.includes(item.image_url)) {
+                                const galeriaInfo = {
+                                    acabado_id:       item.acabado_id ? item.acabado_id : false,
+                                    acabado_name:     item.acabado_name ? item.acabado_name : false,
+                                    acabado_slug:     item.acabado_slug ? item.acabado_slug : false,
+                                    galeria_image_id:   item.image_id ? item.image_id : false,
+                                    galeria_image_url:  item.image_url ? item.image_url : false,
+                                    galeria_image_name:  item.image_name ? item.image_name : false,
+                                    galeria_image_slug: item.image_slug ? item.image_slug : false,
+                                    galeria_favorito:   item.favorito ? item.favorito : 0,
+                                }
+
+                                imagesGaleriaCatalogoAcabado.push({
+                                    src: item.image_url,
+                                    title: JSON.stringify(galeriaInfo),
+                                })
+
+                                checkDuplicatesGaleriaCatalogoAcabado.push(item.image_url)
+                            }
+                        }
+
+                        instanceGaleriaCatalogoAcabado = Chocolat(imagesGaleriaCatalogoAcabado, {
+                            imageSize:  "cover",
+                            loop:       true,
+                            container:  document.querySelector('#chocolat_container'),
+                            afterClose: function () {
+                                $("#chocolat_overlay").css("z-index", 0)
+                                $("#chocolat_wrapper").css("z-index", 0)
+                                $("#chocolat_wrapper").css("opacity", 0)
+                            },
+                            afterImageLoad: function () {
+                                parseLBGaleriaCatalogoAcabados(JSON.parse(imagesGaleriaCatalogoAcabado[apiGaleriaCatalogoAcabado.current()].title))
+                            }
+                        })
+
+                        apiGaleriaCatalogoAcabado = instanceGaleriaCatalogoAcabado.api
+
+                        document.querySelector('#bt_galeria_close').addEventListener('click', (e) => {
+                            e.preventDefault()
+                            apiGaleriaCatalogoAcabado.close()
+                        })
+
+                        document.querySelector('#bt_galeria_prev').addEventListener('click', (e) => {
+                            e.preventDefault()
+
+                            document.querySelector(".lb_galeria .chocolat-wrapper.chocolat-visible .chocolat-description").style.setProperty("visibility", "hidden", "important")
+                            apiGaleriaCatalogoAcabado.prev()
+                        })
+
+                        document.querySelector('#bt_galeria_next').addEventListener('click', (e) => {
+                            e.preventDefault()
+
+                            document.querySelector(".lb_galeria .chocolat-wrapper.chocolat-visible .chocolat-description").style.setProperty("visibility", "hidden", "important")
+                            apiGaleriaCatalogoAcabado.next()
+                        })
+
+                        $("#chocolat_overlay").css("z-index", 999)
+                        $("#chocolat_wrapper").css("z-index", 1000)
+                        $("#chocolat_wrapper").css("opacity", 1)
+
+                        apiGaleriaCatalogoAcabado.open(0)
+                    }
+                }
+            })
+        })
+
+        $("body").on("click", "#color_prev", function(e){
+            e.preventDefault()
+
+            $("#selector_colores_track").css({
+                transform: "translateX(-327px)"
+            })
+        })
+
+        if ($(".single.single-coleccion").length > 0) {
+            $('.selector_colores_wrapper').on("init", function (event, slick, direction) {
+                registerRolloverEvents($(".selector_colores_item"), "selector_colores_item_image_wrapper", {
+                    mt: 24,
+                    ml: 24,
+                    mr: 24,
+                    mb: 0
+                })
+            })
+
+            initColeccionColores()
+
+            $('.selector_acabados_wrapper').on("init", function (event, slick, direction) {
+                registerRolloverEvents($(".selector_acabados_item"), "selector_acabados_item_image_wrapper", {
+                    mt: 24,
+                    ml: 24,
+                    mr: 24,
+                    mb: 0
+                })
+            })
+
+            initColeccionAcabados()
+
+            initColeccionGalerias()
+        }
+
+        if ($(".tax-familia_productos").length > 0) {
+            initColeccionGalerias()
+        }
+
+        if ($(".single-acabado").length > 0) {
+            $('.selector_colores_wrapper').on("init", function (event, slick, direction) {
+                registerRolloverEvents($(".selector_colores_item"), "selector_colores_item_image_wrapper", {
+                    mt: 24,
+                    ml: 24,
+                    mr: 24,
+                    mb: 0
+                })
+            })
+
+            initColeccionColores()
+
+            initColeccionGalerias()
+        }
+
+        //subo placeholder top input woocommerce-form
+        $("body").on("click", "form.kp_checkout_form input[type='text'], form.kp_checkout_form input[type='tel'], form.kp_checkout_form input[type='email'], form.kp_checkout_form input[type='password'], form.kp_checkout_form textarea", function(e){
+            let id = $(this).attr("id")
+            $(`#label_${id}`).addClass("focus")
+        })
+
+        //bajo placeholder si el campo está vacío
+        $("body").on("blur", "form.kp_checkout_form input[type='text'], form.kp_checkout_form input[type='tel'], form.kp_checkout_form input[type='email'], form.kp_checkout_form input[type='password'], form.kp_checkout_form textarea", function(e){
+            let id = $(this).attr("id")
+
+            if (!$(this).val()) {
+                $(`#label_${id}`).removeClass("focus")
+            }
+        })
+
+        //subo placeholder si los campos estan llenos - woocommerce-form
+        if ($("form.kp_checkout_form").length > 0){
+            $("form.kp_checkout_form input[type='text'], form.kp_checkout_form input[type='tel'], form.kp_checkout_form input[type='email'], form.kp_checkout_form input[type='password'], form.kp_checkout_form textarea, form.kp_checkout_form select").each(function(item) {
+                if ($(this).val()) {
+                    let id = $(this).attr("id")
+                    $(`#label_${id}`).addClass("focus")
+                }
+            })
+        }
+
+
+
+
+        // BILLING Country / State select2
+        if ($(".kp_checkout_billing_address").length > 0){
+            $("#billing_country").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+
+            $("#billing_state").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+        }
+
+        // SHIPPING Country / State select2
+        if ($(".kp_checkout_shipping_address").length > 0){
+            $("#shipping_country").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+
+            $("#shipping_state").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+        }
+
+        // BILLING Country events
+        $("body").on("change", "#billing_country", function(){
+            $(".kp_form_field.billing_country").removeClass("field_error")
+        })
+
+        // BILLING State events
+        $("body").on("change", "#billing_state", function(){
+            $(".kp_form_field.billing_state").removeClass("field_error")
+        })
+
+        // SHIPPING Country events
+        $("body").on("change", "#shipping_country", function(){
+            $(".kp_form_field.shipping_country").removeClass("field_error")
+        })
+
+        // SHIPPING State events
+        $("body").on("change", "#shipping_state", function(){
+            $(".kp_form_field.shipping_state").removeClass("field_error")
+        })
+    })
+
+    function isPortrait(){
+        if ($(window).height() > $(window).width()){
+            return true
+        }
+    }
+
+    function isLandscape(){
+        if ($(window).height() < $(window).width()){
+            return true
+        }
+    }
+
+    function isMobile(){
+        if(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
+            return true
+        }
+
+        return false
+    }
+
+    function isMobileNoTablet(){
+        let check = false;
+        (function(a){if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(a)||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4))) check = true;})(navigator.userAgent||navigator.vendor||window.opera);
+        return check;
+    }
+
+    function isScrolledIntoView(el) {
+        let rect = el.getBoundingClientRect()
+        let elemTop = rect.top
+        let elemBottom = rect.bottom
+
+        return elemTop < window.innerHeight && elemBottom >= 0
+    }
+
+    function parseLBColor(info){
+        const content = document.querySelector(".lb_coleccion_options .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+
+            html+= `<div class='lb_coleccion_color' data-id='${info.color_id}'>${info.color_name}</div>`
+            html+= `<div class='lb_coleccion_options'>`
+            html+= `<a href='/calculador-precios/?coleccion_slug=${info.coleccion_slug}&color_slug=${info.color_slug}' target='_blank' class='lb_crea_tu_alfombra_a_medida hide_public' title='Calculador de precios'>Calculador de precios</a>`
+            html+= `<a href='${info.color_image}' class='lb_download_coleccion_opcion' title='Descargar textura en alta calidad' download><span class='download_icon arrow_to_down'></span><span class='download_title'>Descargar textura</span></a>`
+
+            if (!session_id){
+                html+= `<a href='#' class='add_favorito_no_session' title='Añadir el color ${info.color_name} a tus favoritos' data-type='color' data-id='${info.color_id}'><span class='favorito_icon favorito ${info.color_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a fovoritos</span></a>`
+            }else{
+                html+= `<a href='#' class='add_favorito' title='Añadir el color ${info.color_name} a tus favoritos' data-type='color' data-id='${info.color_id}'><span class='favorito_icon favorito ${info.color_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a fovoritos</span></a>`
+            }
+            html+= `</div>`
+
+            content.innerHTML = html
+            content.style.setProperty("visibility", "visible", "important")
+        }
+    }
+
+    function parseLBColorAcabado(info){
+        const content = document.querySelector(".lb_coleccion_options .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+            html+= `<div class='lb_coleccion_color'>${info.color_name}</div>`
+            html+= `<div class='lb_coleccion_options'>`
+            html+= `<a href='${info.color_image_url}' class='lb_download_coleccion_opcion_acabado' title='Descargar textura en alta calidad' download><span class='download_icon arrow_to_down'></span><span class='download_title'>Descargar textura</span></a>`
+
+            if (!session_id){
+                html+= `<a href='#' class='add_favorito_no_session' title='Añadir el color ${info.color_name} a tus favoritos' data-type='color' data-id='${info.color_id}'><span class='favorito_icon favorito ${info.color_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a fovoritos</span></a>`
+            }else {
+                html += `<a href='#' class='add_favorito' title='Añadir el color ${info.color_name} a tus favoritos' data-type='color' data-id='${info.color_id}'><span class='favorito_icon favorito ${info.color_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a fovoritos</span></a>`
+            }
+
+            html+= `</div>`
+
+            content.innerHTML = html
+            content.style.setProperty("visibility", "visible", "important")
+/*
+            const wrapTextReverse = document.querySelector(".")
+            if (wrapTextReverse) {
+                wrapTextReverse.innerHTML = wrapTextReverse.textContent.split(' ').map(function (x) {
+                    return '<span>' + x + '&nbsp;</span>'
+                }).reverse().join('')
+            }
+*/
+        }
+    }
+
+    function parseLBBuscadorColor(info){
+        const content = document.querySelector(".lb_coleccion_options .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+            html+= `<div class='lb_coleccion_color'><a href='${info.color_url}' title='${info.color_name}' class='' target='_blank'>${info.color_name}</a></div>`
+            html+= `<div class='lb_coleccion_options'>`
+            html+= `<a href='/calculador-precios/?coleccion_slug=${info.coleccion_slug}&color_slug=${info.color_slug}' target='_blank' class='lb_crea_tu_alfombra_a_medida hide_public' title='Calculador de precios'>Calculador de precios</a>`
+
+            if (!session_id){
+                html+= `<a href='#' class='add_favorito_no_session' title='Añadir el color ${info.color_name} a tus favoritos' data-type='color' data-id='${info.color_id}'><span class='favorito ${info.color_favorito ? 'active' : ''}'></span></a>`
+            }else {
+                html += `<a href='#' class='add_favorito' title='Añadir el color ${info.color_name} a tus favoritos' data-type='color' data-id='${info.color_id}'><span class='favorito ${info.color_favorito ? 'active' : ''}'></span></a>`
+            }
+
+            html+= `</div>`
+
+            content.innerHTML = html
+            content.style.setProperty("visibility", "visible", "important")
+/*
+            const wrapTextReverse = document.querySelector(".")
+            if (wrapTextReverse) {
+                wrapTextReverse.innerHTML = wrapTextReverse.textContent.split(' ').map(function (x) {
+                    return '<span>' + x + '&nbsp;</span>'
+                }).reverse().join('')
+            }
+*/
+        }
+    }
+
+    function parseLBAcabado(info){
+        const content = document.querySelector(".lb_coleccion_options .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+            html+= `<div class='lb_coleccion_acabado'><a href='${info.acabado_url}' title='${info.acabado_name}' class='' target='_blank'>${info.acabado_name}</a></div>`
+            html+= `<div class='lb_coleccion_options'>`
+            html+= `<a href='/calculador-precios/?coleccion_slug=${info.coleccion_slug}&acabado_slug=${info.acabado_slug}' target='_blank' class='lb_crea_tu_alfombra_a_medida hide_public' title='Calculador de precios'>Calculador de precios</a>`
+
+            if (!session_id){
+                html+= `<a href='#' class='add_favorito_no_session' title='Añadir el acabado ${info.acabado_name} a tus favoritos' data-type='acabado' data-id='${info.acabado_id}'><span class='favorito_icon favorito ${info.acabado_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a favoritos</span></a>`
+            }else {
+                html += `<a href='#' class='add_favorito' title='Añadir el acabado ${info.acabado_name} a tus favoritos' data-type='acabado' data-id='${info.acabado_id}'><span class='favorito_icon favorito ${info.acabado_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a favoritos</span></a>`
+            }
+            html+= `</div>`
+
+            content.innerHTML = html
+            content.style.setProperty("visibility", "visible", "important")
+/*
+            const wrapTextReverse = document.querySelector(".")
+            if (wrapTextReverse) {
+                wrapTextReverse.innerHTML = wrapTextReverse.textContent.split(' ').map(function (x) {
+                    return '<span>' + x + '&nbsp;</span>'
+                }).reverse().join('')
+            }
+*/
+        }
+    }
+
+    function parseLBGaleriaColeccion(info){
+        const content = document.querySelector(".lb_galeria .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+            const item_name = (info.familia_name ? (info.familia_name + ' ') : "") + (info.coleccion_name ? info.coleccion_name : "")
+            const item_target_url = info.coleccion_url ? info.coleccion_url : (info.familia_url ? info.familia_url : false)
+            const item_url = info.coleccion_slug ? `/calculador-precios/?coleccion_slug=${info.coleccion_slug}` : `/calculador-precios/`
+            const favoritos_id = info.coleccion_id ? info.coleccion_id : (info.familia_id ? info.familia_id : false)
+            const favoritos_type = info.coleccion_id ? "coleccion" : (info.familia_id ? "familia" : false)
+
+            html+= `<div class='lb_coleccion_info'><a href='${item_target_url}' title='${item_name}' class='' target='_blank'>${item_name}</a></div>`
+            html+= `<div class='lb_coleccion_options'>`
+            html+= `<a href='${item_url}' target='_blank' class='lb_crea_tu_alfombra_a_medida hide_public' title='Calculador de precios'>Calculador de precios</a>`
+
+            if (favoritos_id) {
+                if (!session_id) {
+                    html += `<a href='#' class='add_favorito_no_session' title='Añadir a tus favoritos' data-type='${favoritos_type}' data-id='${favoritos_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a favoritos</span></a>`
+                } else {
+                    html += `<a href='#' class='add_favorito' title='Añadir a tus favoritos' data-type='${favoritos_type}' data-id='${favoritos_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a favoritos</span</a>`
+                }
+            }
+
+            html+= `</div>`
+
+            content.innerHTML = html
+/*
+            const wrapTextReverse = document.querySelector(".")
+            if (wrapTextReverse) {
+                wrapTextReverse.innerHTML = wrapTextReverse.textContent.split(' ').map(function (x) {
+                    return '<span>' + x + '&nbsp;</span>'
+                }).reverse().join('')
+            }
+*/
+            content.style.setProperty("visibility", "visible", "important")
+        }
+    }
+
+    function parseLBGaleriaAcabaado(info){
+        const content = document.querySelector(".lb_galeria .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+            html+= `<div class='lb_coleccion_info'><a href='${info.acabado_url}' title='${info.acabado_name}' class='' target='_blank'>${info.acabado_name}</a></div>`
+            html+= `<div class='lb_coleccion_options'>`
+
+            if (!session_id) {
+                html += `<a href='#' class='add_favorito_no_session' title='Añadir a tus favoritos' data-type='acabado' data-id='${info.acabado_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a favoritos</span></a>`
+            } else {
+                html += `<a href='#' class='add_favorito' title='Añadir a tus favoritos' data-type='acabado' data-id='${info.acabado_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span><span class='favorito_title'>Añadir a favoritos</span</a>`
+            }
+
+            html+= `</div>`
+
+            content.innerHTML = html
+            content.style.setProperty("visibility", "visible", "important")
+
+/*
+            const wrapTextReverse = document.querySelector(".")
+
+            if (wrapTextReverse) {
+                wrapTextReverse.innerHTML = wrapTextReverse.textContent.split(' ').map(function (x) {
+                    return '<span>' + x + '&nbsp;</span>'
+                }).reverse().join('')
+            }
+*/
+        }
+    }
+
+    function parseLBGaleriaCatalogo(info){
+        const content = document.querySelector(".lb_galeria .chocolat-wrapper.chocolat-visible .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+            html+= `<div class='lb_coleccion_info'><a href='${info.coleccion_url}' title='${info.familia_name ? info.familia_name : ""} ${info.coleccion_name}' class='' target='_blank'>${info.familia_name ? info.familia_name : ""} ${info.coleccion_name}</a></div>`
+            html+= `<div class='lb_coleccion_options'>`
+            html+= `<a href='/calculador-precios/?coleccion_slug=${info.coleccion_slug}' target='_blank' class='lb_crea_tu_alfombra_a_medida hide_public' title='Calculador de precios'>Calculador de precios</a>`
+
+            if (!session_id) {
+                html += `<a href='#' class='add_favorito_no_session' title='Añadir a tus favoritos' data-type='coleccion' data-id='${info.coleccion_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span></a>`
+            } else {
+                html += `<a href='#' class='add_favorito' title='Añadir a tus favoritos' data-type='coleccion' data-id='${info.coleccion_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span></a>`
+            }
+
+            html+= `</div>`
+
+            content.innerHTML = html
+            content.style.setProperty("visibility", "visible", "important")
+/*
+            const wrapTextReverse = document.querySelector(".")
+            if (wrapTextReverse) {
+                wrapTextReverse.innerHTML = wrapTextReverse.textContent.split(' ').map(function (x) {
+                    return '<span>' + x + '&nbsp;</span>'
+                }).reverse().join('')
+            }
+*/
+        }
+    }
+
+    function parseLBGaleriaCatalogoAcabados(info){
+        const content = document.querySelector(".lb_galeria .chocolat-wrapper.chocolat-visible .chocolat-description")
+        content.style.setProperty("visibility", "hidden", "important")
+
+        if (info){
+            let html = ""
+
+            html+= `<div class='lb_coleccion_info acabado'>${info.acabado_name}</div>`
+            html+= `<div class='lb_coleccion_options'>`
+
+            if (!session_id) {
+                html += `<a href='#' class='add_favorito_no_session' title='Añadir a tus favoritos' data-type='acabado' data-id='${info.acabado_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span></a>`
+            } else {
+                html += `<a href='#' class='add_favorito' title='Añadir a tus favoritos' data-type='acabado' data-id='${info.acabado_id}'><span class='favorito_icon favorito ${info.galeria_favorito ? 'active' : ''}'></span></a>`
+            }
+
+            html+= `</div>`
+
+            content.innerHTML = html
+            content.style.setProperty("visibility", "visible", "important")
+        }
+    }
+
+     const registerRolloverEvents = (container, element, margins) => {
+        let elementBase = container.first().find(`.${element}`)
+        const elementWidth = elementBase.width()
+        const elementHeight = elementBase.height()
+
+         container.each(function(){
+             $(this).hover(function () {
+                 let item = $(this).find(`.${element}`)
+
+                 const animacionSource = {
+                     marginTop:   0,
+                     marginLeft:  0,
+                     marginRight: 0,
+                     width:       `${elementWidth + margins.ml + margins.mr}px`,
+                     height:      `${elementHeight + margins.mt}px`
+                 }
+
+                 item.stop().animate(animacionSource, 600)
+             }, function () {
+                 let item = $(this).find(`.${element}`)
+
+                 const animacionTarget = {
+                     marginTop:   `${margins.mt}px`,
+                     marginLeft:  `${margins.ml}px`,
+                     marginRight: `${margins.mr}px`,
+                     width:       `${elementWidth}px`,
+                     height:      `${elementHeight}px`
+                 }
+
+                 item.stop().animate(animacionTarget, 600)
+             })
+         })
+
+
+    }
+
+
+    $("body").on("click", "#color_next", function(e){
+        const items = $(".selector_colores_item").length
+        const current = $('.selector_colores_wrapper').slick("slickCurrentSlide")
+
+
+        if (current == 0){
+            $('#color_prev').hide()
+            $('#color_next').show()
+        }else{
+            $('#color_prev').show()
+            $('#color_next').show()
+
+            if((items - current) <= 6){
+                $('#color_next').hide()
+            }
+        }
+    })
+
+
+    $("body").on("click", "#color_prev", function(e){
+        const items = $(".selector_colores_item").length
+        const current = $('.selector_colores_wrapper').slick("slickCurrentSlide")
+
+        if (current == 0){
+            $('#color_prev').hide()
+            $('#color_next').show()
+        }else{
+            $('#color_prev').show()
+            $('#color_next').show()
+
+            if((items - current) <= 6){
+                $('#color_next').hide()
+            }
+        }
+    })
+    $("body").on("click", "#acabado_next", function(e){
+        const items = $(".selector_acabados_item").length
+        const current = $('.selector_acabados_wrapper').slick("slickCurrentSlide")
+
+
+        if (current == 0){
+            $('#acabado_prev').hide()
+            $('#acabado_next').show()
+        }else{
+            $('#acabado_prev').show()
+            $('#acabado_next').show()
+
+            if((items - current) <= 6){
+                $('#acabado_next').hide()
+            }
+        }
+    })
+
+
+    $("body").on("click", "#acabado_prev", function(e){
+        const items = $(".selector_acabados_item").length
+        const current = $('.selector_acabados_wrapper').slick("slickCurrentSlide")
+
+        if (current == 0){
+            $('#acabado_prev').hide()
+            $('#acabado_next').show()
+        }else{
+            $('#acabado_prev').show()
+            $('#acabado_next').show()
+
+            if((items - current) <= 6){
+                $('#acabado_next').hide()
+            }
+        }
+    })
+
+    const initColeccionColores = () => {
+        const items = $(".selector_colores_item").length
+
+        const isTheEnd = parseInt($("#selector_colores").data("the-end")) == 1 ? true : false
+        const screenWidth = screen.width
+        let rows = 1
+
+        if (isTheEnd && screenWidth <= 768) {
+            rows = 1
+        }else if (isTheEnd && screenWidth > 768) {
+            rows = 2
+        }else {
+            rows = 1
+        }
+
+        $("body").on("click", "#color_next", function(e){
+            const items = $(".selector_colores_item").length
+        })
+
+        $('.selector_colores_wrapper').slick({
+            accessibility:true,
+            centerMode: false,
+            dots: false,
+            infinite: false,
+            speed: 300,
+            slidesToShow: 4,
+            slidesToScroll: 3,
+            variableWidth: true,
+            rows: rows,
+            prevArrow: $('#color_prev'),
+            nextArrow: $('#color_next'),
+            responsive: [{
+                breakpoint: 1441,
+                settings: {
+                    slidesToShow: 3,
+                    slidesToScroll: 2,
+                    infinite: false
+                }
+            }, {
+                breakpoint: 900,
+                settings: {
+                    slidesToShow: 2,
+                    slidesToScroll: 1,
+                    infinite: false,
+                    centerMode: false
+                }
+            },{
+                breakpoint: 480,
+                settings: {
+                    slidesToShow: 1,
+                    slidesToScroll: 1,
+                    infinite: false
+                }
+            }
+            ]
+        })
+
+        if ($('.selector_colores_wrapper').slick("slickCurrentSlide") == 0){
+            $('#color_prev').hide()
+        }else{
+            $('#color_prev').show()
+        }
+    }
+
+    const initColeccionAcabados = () => {
+        const items = $(".selector_acabados_item").length
+
+        $('.selector_acabados_wrapper').slick({
+            accessibility:true,
+            dots: false,
+            infinite: false,
+            rows: 1,
+            speed: 300,
+            slidesToShow: 4,
+            slidesToScroll: 1,
+            variableWidth: true,
+            prevArrow: $('#acabado_prev'),
+            nextArrow: $('#acabado_next'),
+            responsive: [{
+                breakpoint: 1441,
+                settings: {
+                    slidesToShow: 3,
+                    slidesToScroll: 1,
+                    infinite: false,
+                    dots: false,
+                    rows: 1,
+                }
+            }, {
+                breakpoint: 900,
+                settings: {
+                    slidesToShow: 2,
+                    slidesToScroll: 1,
+                    infinite: false,
+                    dots: false,
+                    rows: 1
+                }
+            },{
+                breakpoint: 480,
+                settings: {
+                    slidesToShow: 1,
+                    slidesToScroll: 1,
+                    infinite: false,
+                    dots: false,
+                    rows: 1
+                }
+            }
+            ]
+        })
+
+        if ($('.selector_acabados_wrapper').slick("slickCurrentSlide") == 0){
+            $('#acabado_prev').hide()
+        }else{
+            $('#acabado_prev').show()
+        }
+    }
+
+    const initColeccionGalerias = () => {
+        const items = $(".selector_galerias_item").length
+
+        $('.selector_galerias_wrapper').slick({
+            accessibility:true,
+            dots: false,
+            infinite: false,
+            speed: 300,
+            slidesToShow: 3,
+            slidesToScroll: 1,
+            variableWidth: true,
+            prevArrow: $('#galeria_prev'),
+            nextArrow: $('#galeria_next'),
+            variableWidth: items > 3 ? true : false,
+            responsive: [{
+                breakpoint: 1441,
+                settings: {
+                    slidesToShow: 3,
+                    slidesToScroll: 1,
+                    infinite: false,
+                    dots: false,
+                }
+            }, {
+                breakpoint: 900,
+                settings: {
+                    slidesToShow: 2,
+                    slidesToScroll: 1,
+                    infinite: false,
+                    dots: false,
+                }
+            },{
+                breakpoint: 480,
+                settings: {
+                    slidesToShow: 1,
+                    slidesToScroll: 1,
+                    infinite: false,
+                    dots: false,
+                }
+            }
+            ]
+        })
+    }
+
+    const initBlogGalerias = () => {
+        const items = $(".kp_blog_gallery_item").length
+
+        $('.kp_blog_gallery_wrapper').slick({
+            accessibility:true,
+            dots: false,
+            infinite: false,
+            speed: 300,
+            slidesToShow: items > 3 ? 3 : (items > 2 ? 3 : (items > 1 ? 2 : 1)),
+            slidesToScroll: 1,
+            prevArrow: $('#galeria_prev'),
+            nextArrow: $('#galeria_next'),
+            responsive: [{
+                breakpoint: 1441,
+                settings: {
+                    slidesToShow: items > 3 ? 3 : (items > 2 ? 3 : (items > 1 ? 2 : 1)),
+                    slidesToScroll: 1,
+                }
+            }, {
+                breakpoint: 900,
+                settings: {
+                    slidesToShow: items > 1 ? 2 : 1,
+                    slidesToScroll  : 1,
+                }
+            },{
+                breakpoint: 480,
+                settings: {
+                    slidesToShow: 1,
+                    slidesToScroll: 1,
+                }
+            }
+            ]
+        })
+    }
+
+    const uuidv4 = () => {
+        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16))
+    }
+})
+(jQuery)

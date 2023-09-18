@@ -1,0 +1,565 @@
+(function ($) {
+    $(document).ready(function () {
+        $("body").on("click", "#bt_forgot", function(e){
+            $("#bt_submit").trigger("click")
+            /*
+            const cliente_kp = $("#user_login").val()
+            const user_email = $("#email").val()
+            const nif = $("#nif").val()
+
+            if (cliente_kp && user_email) {
+                $.ajax({
+                    type: 'post',
+                    url: customKPAjaxObject.ajax_url,
+                    dataType: "json",
+                    data: {
+                        action: "ws_update_email",
+                        security: customKPAjaxObject.security,
+                        cliente_kp,
+                        email: user_email,
+                        nif
+                    },
+                    success: function (response) {
+                        if (response.status) {
+                            $("#bt_submit").trigger("click")
+                        } else {
+                            $("#error_forgot").html(response.message)
+                        }
+                    }
+                })
+            }
+            
+             */
+        })
+
+        // my account navigator mobile
+        $("#my_account_mobile_menu").select2({
+            placeholder: "",
+            theme:                   'classic',
+            dropdownAutoWidth:       true,
+            width:                   'auto',
+            allowClear:              false,
+            dropdownParent:          $("#mobile-menu-box"),
+            dropdownCssClass:        "select2-dropdown-wrapper",
+            selectionCssClass:       "select2-selection-wrapper",
+            minimumResultsForSearch: Infinity
+        })
+
+
+        $("#my_account_mobile_menu").on("select2:open", function(){
+            $(".kp_form_field label").addClass("undermenu")
+        })
+
+        $("#my_account_mobile_menu").on("select2:close", function(){
+            $(".kp_form_field label").removeClass("undermenu")
+        })
+
+        // my account navigator mobile
+        $("body").on("change", "#my_account_mobile_menu", function(e){
+            let url = $(this).val()
+
+            window.location = url
+        })
+
+        //subo placeholder top input
+        $("body").on("focus", "form.wpcf7-form input[type='text'], form.wpcf7-form input[type='tel'], form.wpcf7-form input[type='email'], form.wpcf7-form input[type='password'], form.wpcf7-form textarea, form#results_search input[type='text']", function(e){
+            let id = $(this).attr("id")
+            $(`#label_${id}`).addClass("focus")
+        })
+
+        //subo placeholder top input woocommerce-form
+        $("body").on("click", "form.woocommerce-form input[type='text'], form.woocommerce-form input[type='tel'], form.woocommerce-form input[type='email'], form.woocommerce-form input[type='password'], form.woocommerce-form textarea", function(e){
+            let id = $(this).attr("id")
+            $(`#label_${id}`).addClass("focus")
+        })
+
+        //subo placeholder top input woocommerce-form
+        $("body").on("change", "form.woocommerce-form input[type='text'], form.woocommerce-form input[type='tel'], form.woocommerce-form input[type='email'], form.woocommerce-form input[type='password'], form.woocommerce-form textarea", function(e){
+            let id = $(this).attr("id")
+
+            if (!$(this).val()) {
+                $(`#label_${id}`).removeClass("focus")
+            }else{
+                $(`#label_${id}`).addClass("focus")
+            }
+        })
+
+        //subo placeholder top input my-account
+        $("body").on("focus", "form.kp_account_edit input[type='text'], form.kp_account_edit input[type='tel'], form.kp_account_edit input[type='email'], form.kp_account_edit input[type='password'], form.kp_account_edit textarea, form.woocommerce-form input[type='text'], form.woocommerce-form input[type='password'], form.lost_reset_password input[type='text'], form.lost_reset_password input[type='password']", function(e){
+            let id = $(this).attr("id")
+
+            if (id == "billing_state_input"){
+                $(`#label_billing_state`).addClass("focus")
+            }else if (id == "shipping_state_input"){
+                $(`#label_shipping_state`).addClass("focus")
+            }else{
+                $(`#label_${id}`).addClass("focus")
+            }
+        })
+
+        //subo placeholder top input woocommerce-form
+        $("body").on("click", "form.woocommerce-form label", function(e){
+            let id = $(this).attr("id")
+            $(this).addClass("focus")
+        })
+
+        //subo placeholder top select
+        $("form.wpcf7-form select, form.kp_account_edit select").on("select2:opening", function(e){
+            let id = $(this).attr("id")
+            $(`#label_${id}`).addClass("focus")
+        })
+
+        //bajo placeholder si el campo está vacío
+        $("body").on("blur", "form.wpcf7-form input[type='text'], form.wpcf7-form input[type='tel'], form.wpcf7-form input[type='email'], form.wpcf7-form input[type='password'], form.wpcf7-form textarea, form#results_search input[type='text']", function(e){
+            let id = $(this).attr("id")
+
+            if (!$(this).val()) {
+                $(`#label_${id}`).removeClass("focus")
+            }
+        })
+
+        //bajo placeholder top input woocommerce-form
+        $("body").on("blur", "form.woocommerce-form input[type='text'], form.woocommerce-form input[type='tel'], form.woocommerce-form input[type='email'], form.woocommerce-form input[type='password'], form.woocommerce-form textarea, form.lost_reset_password input[type='text'], form.lost_reset_password input[type='password']", function(e){
+            if (!$(this).val()) {
+                let id = $(this).attr("id")
+                $(`#label_${id}`).removeClass("focus")
+            }
+        })
+
+        //subo placeholder top input my-account
+        $("body").on("blur", "form.kp_account_edit input[type='text'], form.kp_account_edit input[type='tel'], form.kp_account_edit input[type='email'], form.kp_account_edit input[type='password'], form.kp_account_edit textarea", function(e){
+            if (!$(this).val()) {
+                let id = $(this).attr("id")
+
+                if (id == "billing_state_input"){
+                    $(`#label_billing_state`).removeClass("focus")
+                }else if (id == "shipping_state_input"){
+                    $(`#label_shipping_state`).removeClass("focus")
+                }else if (id != "cliente_kp"){
+                    $(`#label_${id}`).removeClass("focus")
+                }
+            }
+        })
+
+        //bajo placeholder si el campo está vacío
+        $("form.wpcf7-form select, form.kp_account_edit select").on("select2:close", function(e){
+            let id = $(this).attr("id")
+
+            if (!$(`#${id}`).val()) {
+                $(`#label_${id}`).removeClass("focus")
+            }
+        })
+
+        //subo placeholder si los campos estan llenos
+        if ($("form.wpcf7-form").length > 0){
+            $("form.wpcf7-form input[type='text'], form.wpcf7-form input[type='tel'], form.wpcf7-form input[type='email'], form.wpcf7-form input[type='password'], form.wpcf7-form textarea, select").each(function(item) {
+                if ($(this).val()) {
+                    let id = $(this).attr("id")
+                    $(`#label_${id}`).addClass("focus")
+                }
+            })
+        }
+
+        //subo placeholder si los campos estan llenos - woocommerce-form
+        if ($("form.woocommerce-form").length > 0){
+            $("form.woocommerce-form input[type='text'], form.woocommerce-form input[type='tel'], form.woocommerce-form input[type='email'], form.woocommerce-form input[type='password'], form.woocommerce-form textarea, form.woocommerce-form select").each(function(item) {
+                if ($(this).val()) {
+                    let id = $(this).attr("id")
+                    $(`#label_${id}`).addClass("focus")
+                }
+            })
+        }
+
+        //subo placeholder si los campos estan llenos - my-account
+        if ($("form.kp_account_edit").length > 0){
+            $("form.kp_account_edit input[type='text'], form.kp_account_edit input[type='tel'], form.kp_account_edit input[type='email'], form.kp_account_edit input[type='password'], form.kp_account_edit textarea, form.kp_account_edit select").each(function(item) {
+                if ($(this).val()) {
+                    let id = $(this).attr("id")
+                    $(`#label_${id}`).addClass("focus")
+                }
+            })
+        }
+
+        //subo placeholder si los campos estan llenos - my-account
+        if ($("form.lost_reset_password").length > 0){
+            $("form.lost_reset_password input[type='text'], form.lost_reset_password input[type='password']").each(function(item) {
+                if ($(this).val()) {
+                    let id = $(this).attr("id")
+                    $(`#label_${id}`).addClass("focus")
+                }
+            })
+        }
+
+
+        // BILLING Country / State select2
+        if ($(".kp_account_edit.billing").length > 0){
+            $("#billing_country").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+
+            $("#billing_state").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+        }
+
+        // SHIPPING Country / State select2
+        if ($(".kp_account_edit.shipping").length > 0){
+            $("#shipping_country").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+
+            $("#shipping_state").select2({
+                placeholder: "",
+                dropdownParent: $("#my_account_select_box"),
+                theme: 'classic',
+                dropdownAutoWidth: true,
+                width: 'auto',
+                allowClear: true,
+                dropdownCssClass:"select2-dropdown-wrapper",
+                selectionCssClass:"select2-selection-wrapper",
+            })
+        }
+
+        // BILLING Country events
+        $("body").on("change", "#billing_country", function(){
+            $(".kp_form_field.billing_country").removeClass("field_error")
+        })
+
+        // BILLING State events
+        $("body").on("change", "#billing_state", function(){
+            $(".kp_form_field.billing_state").removeClass("field_error")
+        })
+
+        // SHIPPING Country events
+        $("body").on("change", "#shipping_country", function(){
+            $(".kp_form_field.shipping_country").removeClass("field_error")
+        })
+
+        // SHIPPING State events
+        $("body").on("change", "#shipping_state", function(){
+            $(".kp_form_field.shipping_state").removeClass("field_error")
+        })
+
+        // Lleno el campo state o muestro input state
+        $("body").on("change", ".country_select", function(e){
+            e.preventDefault()
+
+            let country_id = $(this).val()
+            let type = $(this).data("type")
+
+            if(!country_id){
+                if(type == "billing") {
+                    $("#billing_state").addClass("no_state")
+                    $("#billing_state + .select2").addClass("no_state")
+                    $("#billing_state_input").removeClass("no_state")
+                    $("#billing_state_input").val("")
+                    $("#label_billing_state").removeClass("focus")
+                    $("#billing_state").attr("name", "")
+                    $("#billing_state_input").attr("name", "billing_state")
+                }else{
+                    $("#shipping_state").addClass("no_state")
+                    $("#shipping_state + .select2").addClass("no_state")
+                    $("#shipping_state_input").removeClass("no_state")
+                    $("#shipping_state_input").val("")
+                    $("#label_shipping_state").removeClass("focus")
+                    $("#shipping_state").attr("name", "")
+                    $("#shipping_state_input").attr("name", "shipping_state")
+                }
+
+                return false
+            }
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_get_states",
+                    security: customKPAjaxObject.security,
+                    country_id: country_id
+                },
+                success:  function (response) {
+                    if (response.status && response.results && Array.isArray(response.results) && response.results.length) {
+                        let states = "<option value=''></option>"
+
+                        response.results.forEach((item) => {
+                            states += `<option value="${item.state_id}">${item.state}</option>`
+                        })
+
+                        if(type == "billing") {
+                            $("#billing_state_input").addClass("no_state")
+                            $("#billing_state").select2({
+                                placeholder: "",
+                                dropdownParent: $("#billing_state_box"),
+                                theme: 'classic',
+                                dropdownAutoWidth: true,
+                                width: 'auto',
+                                allowClear: true,
+                                dropdownCssClass:"select2-dropdown-wrapper",
+                                selectionCssClass:"select2-selection-wrapper",
+                            })
+                            $("#label_billing_state").removeClass("focus")
+                            $("#billing_state").removeClass("no_state")
+                            $("#billing_state + .select2").removeClass("no_state")
+                            $("#billing_state").html(states).trigger("change")
+                            $("#billing_state").attr("name", "billing_state")
+                            $("#billing_state_input").attr("name", "")
+                        }else{
+                            $("#shipping_state_input").addClass("no_state")
+                            $("#shipping_state").select2({
+                                placeholder: "",
+                                dropdownParent: $("#shipping_state_box"),
+                                theme: 'classic',
+                                dropdownAutoWidth: true,
+                                width: 'auto',
+                                allowClear: true,
+                                dropdownCssClass:"select2-dropdown-wrapper",
+                                selectionCssClass:"select2-selection-wrapper",
+                            })
+                            $("#label_shipping_state").removeClass("focus")
+                            $("#shipping_state").removeClass("no_state")
+                            $("#shipping_state + .select2").removeClass("no_state")
+                            $("#shipping_state").html(states).trigger("change")
+                            $("#shipping_state").attr("name", "shipping_state")
+                            $("#shipping_state_input").attr("name", "")
+                        }
+                    }else{
+                        if(type == "billing") {
+                            $("#billing_state").addClass("no_state")
+                            $("#billing_state + .select2").addClass("no_state")
+                            $("#billing_state_input").removeClass("no_state")
+                            $("#billing_state").attr("name", "")
+                            $("#billing_state_input").attr("name", "billing_state")
+                        }else{
+                            $("#shipping_state").addClass("no_state")
+                            $("#shipping_state + .select2").addClass("no_state")
+                            $("#shipping_state_input").removeClass("no_state")
+                            $("#shipping_state").attr("name", "")
+                            $("#shipping_state_input").attr("name", "shipping_state")
+                        }
+                    }
+                }
+            })
+        })
+
+
+        $("body").on("change", ".kp_account_edit #password_2", function(e){
+            e.preventDefault()
+
+            $(this).removeClass("field_error")
+            $("#error_pwd_2").removeClass("show_error")
+
+            let pwd1 = $(".kp_account_edit #password_1").val()
+            let pwd2 = $(this).val()
+
+            if (pwd1 && pwd2 && pwd1 != pwd2){
+                $(this).addClass("field_error")
+                $("#error_pwd_2").addClass("show_error")
+            }
+        })
+
+        $("body").on("keypress", ".kp_account_edit #password_2", function(e){
+            $(this).removeClass("field_error")
+            $("#error_pwd_2").removeClass("show_error")
+        })
+
+        $("body").on("keypress", ".field_error", function(e){
+            $(this).removeClass("field_error")
+        })
+
+        $("body").on("click", "#bt_back_woo_addresses", function(e){
+            e.preventDefault()
+
+            window.location = "/area-distribuidor/edit-address/"
+        })
+
+
+        $("body").on("click", ".kp_account_edit label", function(){
+            $(this).addClass("focus")
+            $(this).closest(".kp_form_field").find("input").focus()
+        })
+
+
+        $("body").on("click", ".crear_pedido_desde_presupuesto", function(e) {
+            e.preventDefault()
+
+            const presupuesto_id = $(this).data("id")
+
+            $("#bt_create_order").attr("data-id", presupuesto_id)
+
+            $("#new_order_address").slideDown("slow")
+
+            $([document.documentElement, document.body]).animate({
+                scrollTop: $("#select_address").offset().top
+            }, 1000);
+        })
+
+        $("body").on("click", "#bt_create_order", function(e){
+            e.preventDefault()
+
+            const presupuesto_id = $(this).data("id")
+            const customer_id = $(this).data("customer")
+            const user_id = $(this).data("user")
+            const address_id = $("input[name='direccion']:checked").val()
+
+            console.log('presupuesto_id', presupuesto_id)
+            console.log('address_id', address_id)
+            console.log('customer_id', customer_id)
+            console.log('user_id', user_id)
+
+            $.ajax({
+                type:     'post',
+                url:      customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data:     {
+                    action:         "ws_create_pedido_from_presupuesto",
+                    security:       customKPAjaxObject.security,
+                    presupuesto_id: presupuesto_id,
+                    address_id: address_id,
+                    customer_id: customer_id,
+                    user_id: user_id
+                },
+                success:  function (response) {
+                    if (response.status) {
+                        window.open(`${response.payment_url ? response.payment_url : "/finalizar-compra/"}`, "_self")
+                    }
+                }
+            })
+        })
+
+        if ($(".progress_bars").length > 0){
+            let download = 0
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_libra_customer",
+                    security: customKPAjaxObject.security
+                },
+                success:  function (response) {
+                    if (response.status){
+                        $(".pb-desc li:first-child .bar .progress").css("width", "100%")
+                        download++
+
+                        if(download == 3){
+                            $(".download_intro").hide()
+                            $(".progress_bars").hide()
+                        }
+                    }
+                }
+            })
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_libra_orders",
+                    security: customKPAjaxObject.security
+                },
+                success:  function (response) {
+                    if (response.status){
+                        $(".pb-desc li:nth-child(2) .bar .progress").css("width", "100%")
+                        download++
+
+                        if(download == 3){
+                            $(".download_intro").hide()
+                            $(".progress_bars").hide()
+                        }
+                    }
+                }
+            })
+
+            $.ajax({
+                type: 'post',
+                url: customKPAjaxObject.ajax_url,
+                dataType: "json",
+                data: {
+                    action: "ws_libra_invoices",
+                    security: customKPAjaxObject.security
+                },
+                success:  function (response) {
+                    if (response.status){
+                        $(".pb-desc li:last-child .bar .progress").css("width", "100%")
+                        download++
+
+                        if(download == 3){
+                            $(".download_intro").hide()
+                            $(".progress_bars").hide()
+                        }
+                    }
+                }
+            })
+        }
+
+        if($(".kp_presupuestos").length > 0){
+            $("body").on("click", ".item_clone_item", function(e){
+                e.preventDefault()
+
+                const itemId = $(this).data("id")
+
+                $.ajax({
+                    type: 'post',
+                    url: customKPAjaxObject.ajax_url,
+                    dataType: "json",
+                    data: {
+                        action: "ws_add_presupuesto_item",
+                        security: customKPAjaxObject.security,
+                        id: itemId
+                    },
+                    success:  function (response) {
+                        if (response.status){
+                            window.location = "/area-distribuidor/saved-orders/"
+                        }
+                    }
+                })
+            })
+
+            $("body").on("click", ".item_eliminar_item", function(e){
+                e.preventDefault()
+
+                const itemId = $(this).data("id")
+
+                $.ajax({
+                    type: 'post',
+                    url: customKPAjaxObject.ajax_url,
+                    dataType: "json",
+                    data: {
+                        action: "ws_delete_presupuesto_item",
+                        security: customKPAjaxObject.security,
+                        id: itemId
+                    },
+                    success:  function (response) {
+                        if (response.status){
+                            window.location = "/area-distribuidor/saved-orders/"
+                        }
+                    }
+                })
+            })
+        }
+    })
+})
+(jQuery)
