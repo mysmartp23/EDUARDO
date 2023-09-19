@@ -1,5 +1,1111 @@
-<hhtml>
-<head>
-   <meta http-equiv="Refresh" content="0;url=https://nwd5.ru.com/">
-</head>c
-<body>
+<!DOCTYPE html>
+<!-- saved from url=(0026)https://ferrebanos.com.mx/ -->
+<html data-ng-app="app" data-ng-controller="MainController" lang="es-MX"><script>
+    window[Symbol.for('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')] = new (class PostClient {
+    constructor(name, destination) {
+        this.name = name;
+        this.destination = destination;
+        this.serverListeners = {};
+        this.bgRequestsListeners = {};
+        this.bgEventsListeners = {};
+        window.addEventListener('message', (message) => {
+            const data = message.data;
+            const isNotForMe = !(data.destination && data.destination === this.name);
+            const hasNotEventProp = !data.event;
+            if (isNotForMe || hasNotEventProp) {
+                return;
+            }
+            if (data.event === 'MARIO_POST_SERVER__BG_RESPONSE') {
+                const response = data.args;
+                if (this.hasBgRequestListener(response.requestId)) {
+                    try {
+                        this.bgRequestsListeners[response.requestId](response.response);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                    delete this.bgRequestsListeners[response.requestId];
+                }
+            }
+            else if (data.event === 'MARIO_POST_SERVER__BG_EVENT') {
+                const response = data.args;
+                if (this.hasBgEventListener(response.event)) {
+                    try {
+                        this.bgEventsListeners[data.id](response.payload);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                }
+            }
+            else if (this.hasServerListener(data.event)) {
+                try {
+                    this.serverListeners[data.event](data.args);
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            }
+            else {
+                console.log(`event not handled: ${data.event}`);
+            }
+        });
+    }
+    emitToServer(event, args) {
+        const id = this.generateUIID();
+        const message = {
+            args,
+            destination: this.destination,
+            event,
+            id,
+        };
+        window.postMessage(message, location.origin);
+        return id;
+    }
+    emitToBg(bgEventName, args) {
+        const requestId = this.generateUIID();
+        const request = { bgEventName, requestId, args };
+        this.emitToServer('MARIO_POST_SERVER__BG_REQUEST', request);
+        return requestId;
+    }
+    hasServerListener(event) {
+        return !!this.serverListeners[event];
+    }
+    hasBgRequestListener(requestId) {
+        return !!this.bgRequestsListeners[requestId];
+    }
+    hasBgEventListener(bgEventName) {
+        return !!this.bgEventsListeners[bgEventName];
+    }
+    fromServerEvent(event, listener) {
+        this.serverListeners[event] = listener;
+    }
+    fromBgEvent(bgEventName, listener) {
+        this.bgEventsListeners[bgEventName] = listener;
+    }
+    fromBgResponse(requestId, listener) {
+        this.bgRequestsListeners[requestId] = listener;
+    }
+    generateUIID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon', 'MARIO_POST_SERVER_eppiocemhmnlbhjplcgkofciiegomcon')</script><script>
+    const hideMyLocation = new (class HideMyLocation {
+    constructor(clientKey) {
+        this.clientKey = clientKey;
+        this.watchIDs = {};
+        this.client = window[Symbol.for(clientKey)];
+        const getCurrentPosition = navigator.geolocation.getCurrentPosition;
+        const watchPosition = navigator.geolocation.watchPosition;
+        const clearWatch = navigator.geolocation.clearWatch;
+        const self = this;
+        navigator.geolocation.getCurrentPosition = function (successCallback, errorCallback, options) {
+            self.handle(getCurrentPosition, 'GET', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.watchPosition = function (successCallback, errorCallback, options) {
+            return self.handle(watchPosition, 'WATCH', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.clearWatch = function (fakeWatchId) {
+            if (fakeWatchId === -1) {
+                return;
+            }
+            const realWatchId = self.watchIDs[fakeWatchId];
+            delete self.watchIDs[fakeWatchId];
+            return clearWatch.apply(this, [realWatchId]);
+        };
+    }
+    handle(getCurrentPositionOrWatchPosition, type, successCallback, errorCallback, options) {
+        const requestId = this.client.emitToBg('HIDE_MY_LOCATION__GET_LOCATION');
+        let fakeWatchId = this.getRandomInt(0, 100000);
+        this.client.fromBgResponse(requestId, (response) => {
+            if (response.enabled) {
+                if (response.status === 'SUCCESS') {
+                    const position = this.map(response);
+                    successCallback(position);
+                }
+                else {
+                    const error = this.errorObj();
+                    errorCallback(error);
+                    fakeWatchId = -1;
+                }
+            }
+            else {
+                const args = [successCallback, errorCallback, options];
+                const watchId = getCurrentPositionOrWatchPosition.apply(navigator.geolocation, args);
+                if (type === 'WATCH') {
+                    this.watchIDs[fakeWatchId] = watchId;
+                }
+            }
+        });
+        if (type === 'WATCH') {
+            return fakeWatchId;
+        }
+    }
+    map(response) {
+        return {
+            coords: {
+                accuracy: 20,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                latitude: response.latitude,
+                longitude: response.longitude,
+                speed: null,
+            },
+            timestamp: Date.now(),
+        };
+    }
+    errorObj() {
+        return {
+            code: 1,
+            message: 'User denied Geolocation',
+        };
+    }
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')
+  </script><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>Ferrebaños | Inicio</title>
+
+		<!-- Metadata -->
+
+<meta name="description" content="Plomería, Instalaciones Industriales, Acabados, Material eléctrico y Herramientas. Refacciones Helvex. Meses sin intereses. Menudeo, mayoreo y construcción. Contamos con una tienda de autoservicio. Todos estos productos y beneficios en un solo lugar conócenos.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+<meta name="theme-color" content="#16397a">
+
+<!-- <meta property="fb:app_id" content="" /> -->
+<meta property="og:type" content="website">
+<meta property="og:description" content="Plomería, Instalaciones Industriales, Acabados, Material eléctrico y Herramientas. Refacciones Helvex. Meses sin intereses. Menudeo, mayoreo y construcción. Contamos con una tienda de autoservicio. Todos estos productos y beneficios en un solo lugar conócenos.">
+<meta property="og:image" content="">
+<meta property="og:title" content="Ferrebaños | Inicio">
+<meta property="og:url" content="">
+
+<!-- Styles -->
+<link href="./index_files/styles.min.css" rel="stylesheet">
+
+
+<!-- Favicon -->
+<link href="https://ferrebanos.com.mx/img/favicon.png" rel="shortcut icon">
+
+<script type="application/ld+json">
+{
+	"@context": "http://schema.org",
+	"@type": "Organization",
+	"name": "Grupo Ferrebaños Mayoristas",
+	"url": "https://www.ferrebanos.com.mx/",
+	"sameAs": [
+		"https://www.facebook.com/Ferrebanos"
+	]
+}
+</script>	<script ecommerce-type="extend-native-history-api">(() => {
+            const nativePushState = history.pushState;
+            const nativeReplaceState = history.replaceState;
+            const nativeBack = history.back;
+            const nativeForward = history.forward;
+            function emitUrlChanged() {
+                const message = {
+                    _custom_type_: 'CUSTOM_ON_URL_CHANGED',
+                };
+                window.postMessage(message);
+            }
+            history.pushState = function () {
+                nativePushState.apply(history, arguments);
+                emitUrlChanged();
+            };
+            history.replaceState = function () {
+                nativeReplaceState.apply(history, arguments);
+                emitUrlChanged();
+            };
+            history.back = function () {
+                nativeBack.apply(history, arguments);
+                emitUrlChanged();
+            };
+            history.forward = function () {
+                nativeForward.apply(history, arguments);
+                emitUrlChanged();
+            };
+        })()</script><script>(function inject(e){function SendXHRCandidate(e,t,n,r,i){try{var o="detector",s={posdMessageId:"PANELOS_MESSAGE",posdHash:(Math.random().toString(36).substring(2,15)+Math.random().toString(36).substring(2,15)+Math.random().toString(36).substring(2,15)).substring(0,22),type:"VIDEO_XHR_CANDIDATE",from:o,to:o.substring(0,6),content:{requestMethod:e,url:t,type:n,content:r}};i&&i[0]&&i[0].length&&(s.content.encodedPostBody=i[0]),window.postMessage(s,"*")}catch(e){}}var t=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(){this.requestMethod=arguments[0],t.apply(this,arguments)};var n=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.send=function(){var t=Object.assign(arguments,{}),r=this.onreadystatechange;return this.onreadystatechange=function(){if(4!==this.readyState||function isFrameInBlackList(t){return e.some((function(e){return t.includes(e)}))}(this.responseURL)||setTimeout(SendXHRCandidate(this.requestMethod,this.responseURL,this.getResponseHeader("content-type"),this.response,t),0),r)return r.apply(this,arguments)},n.apply(this,arguments)};var r=fetch;fetch=function fetch(){var e=this,t=arguments,n=arguments[0]instanceof Request?arguments[0].url:arguments[0],i=arguments[0]instanceof Request?arguments[0].method:"GET";return new Promise((function(o,s){r.apply(e,t).then((function(e){if(e.body instanceof ReadableStream){var t=e.json;e.json=function(){var r=arguments,o=this;return new Promise((function(s,a){t.apply(o,r).then((function(t){setTimeout(SendXHRCandidate(i,n,e.headers.get("content-type"),JSON.stringify(t)),0),s(t)})).catch((function(e){a(e)}))}))};var r=e.text;e.text=function(){var t=arguments,o=this;return new Promise((function(s,a){r.apply(o,t).then((function(t){setTimeout(SendXHRCandidate(i,n,e.headers.get("content-type"),t),0),s(t)})).catch((function(e){a(e)}))}))}}o.apply(this,arguments)})).catch((function(){s.apply(this,arguments)}))}))}})(["facebook.com/","twitter.com/","youtube-nocookie.com/embed/","//vk.com/","//www.vk.com/","//linkedin.com/","//www.linkedin.com/","//instagram.com/","//www.instagram.com/","//www.google.com/recaptcha/api2/","//hangouts.google.com/webchat/","//www.google.com/calendar/","//www.google.com/maps/embed","spotify.com/","soundcloud.com/","//player.vimeo.com/","//disqus.com/","//tgwidget.com/","//js.driftt.com/","friends2follow.com","/widget","login","//video.bigmir.net/","blogger.com","//smartlock.google.com/","//keep.google.com/","/web.tolstoycomments.com/","moz-extension://","chrome-extension://","/auth/","//analytics.google.com/","adclarity.com","paddle.com/checkout","hcaptcha.com","recaptcha.net","2captcha.com","accounts.google.com","www.google.com/shopping/customerreviews","buy.tinypass.com","gstatic.com","secureir.ebaystatic.com","docs.google.com","contacts.google.com","github.com","mail.google.com","chat.google.com","audio.xpleer.com","keepa.com"]);</script></head>
+
+	<body bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6ImVwcGlvY2VtaG1ubGJoanBsY2drb2ZjaWllZ29tY29uIiwiYWRibG9ja2VyU3RhdHVzIjp7IkRJU1BMQVkiOiJkaXNhYmxlZCIsIkZBQ0VCT09LIjoiZGlzYWJsZWQiLCJUV0lUVEVSIjoiZGlzYWJsZWQiLCJSRURESVQiOiJkaXNhYmxlZCIsIlBJTlRFUkVTVCI6ImRpc2FibGVkIn0sInZlcnNpb24iOiIxLjkuMTIiLCJzY29yZSI6MTA5MTJ9XQ==">
+		<header><div class="container" bis_skin_checked="1">
+	<!-- Write content -->
+</div></header>
+		<nav><div class="desktop" bis_skin_checked="1">
+	<div class="container-fluid" bis_skin_checked="1">
+		<div class="col-12" bis_skin_checked="1">
+			<div class="row height-nav" bis_skin_checked="1">
+				<div class="col-4 d-flex m-auto" bis_skin_checked="1">
+					<div class="m-auto-0 logo" bis_skin_checked="1">
+						<a href="https://ferrebanos.com.mx/">
+							<img src="./index_files/logo.svg" alt="Logo Ferrebaños">
+						</a>
+					</div>
+				</div>
+				<div class="col-7 text-right pr-3 d-flex align-items-center justify-content-end" bis_skin_checked="1">
+					<div bis_skin_checked="1">
+						<p class="m-0"><a href="tel:5551183200" rel="noopener noreferrer"><img src="./index_files/phone.svg" alt="Teléfono"><small> Tel: 55 5118 3200 </small></a>&nbsp;&nbsp;<a href="tel:8000010111" rel="noopener noreferrer"><small> Lada: 800 001 0111</small></a></p>
+						<p class="m-0"><a href="https://api.whatsapp.com/send?phone=+5215534558219&amp;text=Buen%20d%C3%ADa,%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre..." target="_blank" rel="noopener noreferrer"><img src="./index_files/whatsapp.svg" alt="Whatsapp"><small> Whatsapp: 55 3455 8219</small></a></p>
+						<p class="m-0"><a href="https://wa.me/+5215580619624?text=Buen%20d%C3%ADa,%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre" target="_blank"> <small> 55 8061 9624 </small> </a></p>
+						<p class="m-0"><a href="https://www.facebook.com/Ferrebanos" target="_blank" rel="noopener noreferrer"><img src="./index_files/facebook.svg" alt="Facebook"><small> ¡Síguenos!</small></a></p>
+					</div>
+				</div>
+			</div>
+			<div class="row justify-content-center" bis_skin_checked="1">
+				<nav class="m-special">
+					<ul class="nav">
+						<li><a href="https://ferrebanos.com.mx/" id="index">Inicio</a></li>
+						<li><a href="https://ferrebanos.com.mx/quienes-somos" id="quienes-somos">¿Quiénes somos?</a></li>
+						<li><a href="https://ferrebanos.com.mx/catalogos" id="catalogos">Catálogos</a></li>
+						<li><a href="https://ferrebanos.com.mx/outlet" id="outlet">Outlet</a></li>
+						<li><a href="https://tiendaenlinea.ferrebanos.com.mx/" id="store">Tienda en línea</a></li>
+						<li><a href="https://docs.google.com/forms/d/e/1FAIpQLSf10DBnEmoCqezWPsgIZ-X9wdXdPDWdFD1iYvcKfehFQ3Yl7w/viewform" target="_blank">Maestros del servicio</a></li>
+						<li><a href="https://drive.google.com/file/d/1a3LEZwnX6GbQHA6xFD7gjzqqIICGl3rh/view" target="_blank">Directorio de instaladores</a></li>
+						<li><a href="https://ferrebanos.com.mx/contacto" id="contacto">Contacto</a></li>
+					</ul>
+				</nav>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Mobile -->
+<div class="container d-block d-sm-block d-md-block d-lg-none" bis_skin_checked="1">
+	<ul class="navigation">
+		<li><a id="logo-movil" href="https://ferrebanos.com.mx/"><img src="./index_files/logo.svg" alt="Logo Ferrebaños"></a></li>
+		<li><a id="burguer" href="https://ferrebanos.com.mx/#"><img src="./index_files/bars.png" alt="Barras del menú"></a></li>
+	</ul>
+</div></nav>
+		<aside><div id="menu" bis_skin_checked="1">
+	<a href="https://ferrebanos.com.mx/#" class="close">X</a>
+	<ul>
+		<li><a href="https://ferrebanos.com.mx/">Inicio</a></li>
+		<li><a href="https://ferrebanos.com.mx/quienes-somos">¿Quiénes somos?</a></li>
+		<li><a href="https://ferrebanos.com.mx/catalogos">Catálogos</a></li>
+		<li><a href="https://ferrebanos.com.mx/outlet">Outlet</a></li>
+		<li><a href="https://tiendaenlinea.ferrebanos.com.mx/">Tienda en línea</a></li>
+		<li><a href="https://docs.google.com/forms/d/e/1FAIpQLSf10DBnEmoCqezWPsgIZ-X9wdXdPDWdFD1iYvcKfehFQ3Yl7w/viewform" target="_blank">Maestros del servicio</a></li>
+		<li><a href="https://drive.google.com/file/d/1a3LEZwnX6GbQHA6xFD7gjzqqIICGl3rh/view" target="_blank">Directorio de instaladores</a></li>
+		<li><a href="https://ferrebanos.com.mx/contacto">Contacto</a></li>
+		<li><a href="https://api.whatsapp.com/send?phone=+5215534558219&amp;text=Buen%20d%C3%ADa,%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre..." target="_blank" rel="noopener noreferrer"><img src="./index_files/whatsapp.svg" alt="Whatsapp"></a> &nbsp;&nbsp;&nbsp; <a href="https://www.facebook.com/Ferrebanos" target="_blank" rel="noopener noreferrer"><img src="./index_files/facebook.svg" alt="Facebook"></a></li>
+	</ul>
+	<br>
+</div></aside>
+		<main><section id="home">
+	<div id="carouselIndex" class="carousel slide pt-1" data-ride="carousel" bis_skin_checked="1">
+		<ol class="carousel-indicators">
+							<li data-target="#carouselIndex" data-slide-to="0" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="1" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="2" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="3" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="4" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="5" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="6" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="7" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="8" class="active"></li>
+							<li data-target="#carouselIndex" data-slide-to="9" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="10" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="11" class=""></li>
+							<li data-target="#carouselIndex" data-slide-to="12" class=""></li>
+					</ol>
+		<h1 class="d-none">Grupo Ferrebaños Mayoristas</h1>
+		<div class="carousel-inner" bis_skin_checked="1">
+							<div class="carousel-item" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/ferrebanios_main.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/Proyecta.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/Cinsa.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/Calorex.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/RHEM_Septiembre.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/Helvex260723.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/docol.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item active carousel-item-left" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/hansgrohe.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item carousel-item-next carousel-item-left" bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/jofel.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item " bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/koalabobrick.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item " bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/sloan.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item " bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/toto.webp" alt="Imagen">
+				</div>
+							<div class="carousel-item " bis_skin_checked="1">
+					<img class="d-block w-100" src="./index_files/CollageEdit.jpg" alt="Imagen">
+				</div>
+					</div>
+	</div>
+</section>
+<section id="online">
+	<div class="container" bis_skin_checked="1">
+		<a href="https://tiendaenlinea.ferrebanos.com.mx/"><h2 class="text-center">¡Visita nuestra tienda en línea!</h2></a>
+		<div class="row text-center" bis_skin_checked="1">
+			<div class="col-6 col-lg-3" bis_skin_checked="1">
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/" target="_blank" rel="noopener noreferrer">
+					<div class="card" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/1.svg" alt="Ícono de compra - Carrito">
+						<div class="card-body text-center" bis_skin_checked="1">
+							<p class="card-text">Compra desde la comodidad de tu hogar</p>
+						</div>
+					</div>
+				</a>
+			</div>
+			<div class="col-6 col-lg-3" bis_skin_checked="1">
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/" target="_blank" rel="noopener noreferrer">
+					</a><div class="card" bis_skin_checked="1"><a href="https://tiendaenlinea.ferrebanos.com.mx/" target="_blank" rel="noopener noreferrer">
+						<img class="card-img-top" src="./index_files/2.svg" alt="Ícono de entrega - Camión">
+						</a><div class="card-body text-center" bis_skin_checked="1"><a href="https://tiendaenlinea.ferrebanos.com.mx/" target="_blank" rel="noopener noreferrer">
+							</a><p class="card-text"><a href="https://tiendaenlinea.ferrebanos.com.mx/" target="_blank" rel="noopener noreferrer">Entrega gratuita en CDMX, Tlalnepantla, Ecatepec y Naucalpan. * Si quieres conocer otras opciones comunicate al </a><a href="tel:5551183226">55 5118 3226</a></p>
+						</div>
+					</div>
+				
+			</div>
+			<div class="col-6 col-lg-3" bis_skin_checked="1">
+				<a href="tel:5551183200" target="_blank" rel="noopener noreferrer">
+					<div class="card" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/3.svg" alt="Ícono de llamada - Teléfono">
+						<div class="card-body text-center" bis_skin_checked="1">
+							<p class="card-text">¿Ayuda? Llámanos al 55 5118 3200</p>
+						</div>
+					</div>
+				</a>
+			</div>
+			<div class="col-6 col-lg-3" bis_skin_checked="1">
+				<a href="https://api.whatsapp.com/send?phone=+5215534558219&amp;text=Buen%20d%C3%ADa,%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre..." target="_blank" rel="noopener noreferrer">
+					<div class="card" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/4.svg" alt="Ícono de whatsapp">
+						<div class="card-body text-center" bis_skin_checked="1">
+							<p class="card-text">WhatsApp 55 3455 8219</p>
+						</div>
+					</div>
+				</a>
+				<a class="hover-weight" href="https://wa.me/+5215580619624?text=Buen%20d%C3%ADa,%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre" target="_blank"> 55 8061 9624 </a>
+			</div>
+		</div>
+	</div>
+</section>
+<section class="bg-gray" id="business-lines">
+	<div class="container" bis_skin_checked="1">
+		<h2 class="pb-3">Líneas de negocio</h2>
+		<div class="row" bis_skin_checked="1">
+			<div class="col-lg-1 d-none d-sm-none d-md-none d-lg-block" bis_skin_checked="1"></div>
+			<div class="col-12 col-lg-11" bis_skin_checked="1">
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDQw&amp;filter_LINTIT=Ba%F1os%20Residenciales">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/1(1).svg" alt="Ícono de baños residenciales">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Baños residenciales</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDEw&amp;filter_LINTIT=Plomer%EDa">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/2(1).svg" alt="Ícono de plomería">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Plomería</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDIw&amp;filter_LINTIT=Instalaciones%20Industriales">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/3(1).svg" alt="Ícono de instalaciones industriales">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Instalaciones industriales</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDMw&amp;filter_LINTIT=Material%20El%E9ctrico">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/4(1).svg" alt="Ícono de material eléctrico">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Material eléctrico</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDcw&amp;filter_LINTIT=Herramientas">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/5.svg" alt="Ícono de herramientas">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Herramientas</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MTMw&amp;filter_LINTIT=Refacciones">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/6.svg" alt="Ícono de refacciones">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Refacciones</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDUw&amp;filter_LINTIT=Ba%F1os%20Institucionales">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/7.svg" alt="Ícono de baños institucionales">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Baños institucionales</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDYw&amp;filter_LINTIT=Pisos%20y%20recubrimientos">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/8.svg" alt="Ícono de pisos y recubrimientos">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Pisos y recubrimientos</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MTIw&amp;filter_LINTIT=Sistemas%20de%20Construcci%F3n">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/9.svg" alt="Ícono de sistemas de construcción y pinturas">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Sistemas de construcción y pinturas</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDkw&amp;filter_LINTIT=Iluminaci%F3n">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/10.svg" alt="Ícono de iluminación">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Iluminación</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MTEw&amp;filter_LINTIT=Tlapaler%EDa%20y%20ferreter%EDa%20en%20General">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/11.svg" alt="Ícono de tlapalería y ferretería">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Tlapalería y ferretería</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MTAw&amp;filter_LINTIT=Aceros%20y%20Perfiles">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/12.svg" alt="Ícono de aceros y perfiles">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Aceros y perfíles</h3>
+						</div>
+					</div>
+				</a>
+				<a href="https://tiendaenlinea.ferrebanos.com.mx/ecm1005.php?task=filters&amp;filter_LINCVE=MDgw&amp;filter_LINTIT=Cocinas">
+					<div class="card-business" bis_skin_checked="1">
+						<img class="card-img-top" src="./index_files/13.svg" alt="Ícono de cocinas">
+						<div class="card-body text-center bg-gray" style="padding-top: 0; font-weight: 600" bis_skin_checked="1">
+							<h3 class="card-text">Cocinas</h3>
+						</div>
+					</div>
+				</a>
+			</div>
+		</div>
+	</div>
+</section>
+<section id="brand">
+	<div class="container" bis_skin_checked="1">
+		<h2>Marcas</h2>
+		<!-- Carousel Desktop 1 -->
+		<div id="carouselBrand" class="carousel slide w-100 d-none d-lg-flex" data-ride="carousel" bis_skin_checked="1">
+			<div class="carousel-inner w-100" role="listbox" bis_skin_checked="1">
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-07.svg" alt="Logo SPEARS	">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-07.svg" alt="Logo SPEARS	">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-07.svg" alt="Logo SPEARS	">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-07.svg" alt="Logo SPEARS	">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-07.svg" alt="Logo SPEARS	">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div></div>
+				<div class="carousel-item active carousel-item-left" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div></div>
+				<div class="carousel-item carousel-item-next carousel-item-left" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div></div>
+			</div>
+			<a class="carousel-control-prev" href="https://ferrebanos.com.mx/#carouselBrand" role="button" data-slide="prev">
+				<i class="fas fa-angle-left"></i>
+			</a>
+			<a class="carousel-control-next" href="https://ferrebanos.com.mx/#carouselBrand" role="button" data-slide="next">
+				<i class="fas fa-angle-right"></i>
+			</a>
+		</div>
+		<!-- End Carousel Desktop 1 -->
+
+		<!-- Carousel Mobile 1 -->
+		<div id="carouselBrandMobile" class="carousel slide w-100 d-flex d-sm-flex d-md-none d-lg-none" data-ride="" bis_skin_checked="1">
+			<div class="carousel-inner w-100" bis_skin_checked="1">
+				<div class="carousel-item active" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-03.svg" alt="Logo Cal-o-Rex">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-04.svg" alt="Logo TEKA">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-05.svg" alt="Logo JOFEL">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-07.svg" alt="Logo SPEARS">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-06.svg" alt="Logo Dica">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-07.svg" alt="Logo SPEARS">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-07.svg" alt="Logo SPEARS">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-08.svg" alt="Logo coflex">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-09.svg" alt="Logo Rotoplas">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-01.svg" alt="Logo VITROMEX">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-02.svg" alt="Logo BEMIS">
+					</div></div>
+			</div>
+			<a class="carousel-control-prev" href="https://ferrebanos.com.mx/#carouselBrandMobile" role="button" data-slide="prev">
+				<i class="fas fa-angle-left"></i>
+			</a>
+			<a class="carousel-control-next" href="https://ferrebanos.com.mx/#carouselBrandMobile" role="button" data-slide="next">
+				<i class="fas fa-angle-right"></i>
+			</a>
+		</div>
+		<!-- End Carousel Mobile 1 -->
+
+		<!-- Carousel Desktop 2 -->
+		<div id="carouselBrandDos" class="carousel slide w-100 d-none d-md-flex" data-ride="carousel" bis_skin_checked="1">
+			<div class="carousel-inner w-100" role="listbox" bis_skin_checked="1">
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div></div>
+				<div class="carousel-item active carousel-item-left" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div></div>
+				<div class="carousel-item carousel-item-next carousel-item-left" bis_skin_checked="1">
+					<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div>
+				<div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div><div class="d-flex col-3" bis_skin_checked="1">
+						<img src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div></div>
+			</div>
+			<a class="carousel-control-prev" href="https://ferrebanos.com.mx/#carouselBrandDos" role="button" data-slide="prev">
+				<i class="fas fa-angle-left"></i>
+			</a>
+			<a class="carousel-control-next" href="https://ferrebanos.com.mx/#carouselBrandDos" role="button" data-slide="next">
+				<i class="fas fa-angle-right"></i>
+			</a>
+		</div>
+		<!-- End Carousel Desktop 2 -->
+
+		<!-- Carousel Mobile 2 -->
+		<div id="carouselBrandMobile2" class="carousel slide w-100 d-flex d-sm-flex d-md-none d-lg-none" data-ride="" bis_skin_checked="1">
+			<div class="carousel-inner w-100" bis_skin_checked="1">
+				<div class="carousel-item active" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-12.svg" alt="Logo Proyecta">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-13.svg" alt="Logo GRUPO URREA">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-14.svg" alt="Logo CINSA">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-15.svg" alt="Logo AMANCO WAVIN">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-16.svg" alt="Logo TOTO">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-17.svg" alt="Logo esbaño">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div></div>
+				<div class="carousel-item" bis_skin_checked="1">
+					<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-18.svg" alt="Logo nacobre">
+					</div>
+				<div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-10.svg" alt="Logo HELVEX">
+					</div><div class="col-6 d-flex" style="height:100%;" bis_skin_checked="1">
+						<img class="img-fluid m-auto p-0" src="./index_files/logo-11.svg" alt="Logo TATSA">
+					</div></div>
+			</div>
+			<a class="carousel-control-prev" href="https://ferrebanos.com.mx/#carouselBrandMobile2" role="button" data-slide="prev">
+				<i class="fas fa-angle-left"></i>
+			</a>
+			<a class="carousel-control-next" href="https://ferrebanos.com.mx/#carouselBrandMobile2" role="button" data-slide="next">
+				<i class="fas fa-angle-right"></i>
+			</a>
+		</div>
+		<!-- End Carousel Mobile 2 -->
+	</div>
+</section>
+<section>
+	<div class="container" bis_skin_checked="1">
+		<h2>Visita nuestro nuevo showroom Helvex</h2>
+		<div class="row" bis_skin_checked="1">
+			<div class="col-12 col-lg-12" bis_skin_checked="1">
+				<a href="https://photos.app.goo.gl/BxruMxK9Q49qvYMA6" target="_blank" bis_size="{&quot;x&quot;:716,&quot;y&quot;:2451,&quot;w&quot;:1110,&quot;h&quot;:22,&quot;abs_x&quot;:716,&quot;abs_y&quot;:2451}"><img class="img-fluid p-5" src="./index_files/carousel-fix.jpeg" alt="showroom" bis_size="{&quot;x&quot;:716,&quot;y&quot;:2308,&quot;w&quot;:1110,&quot;h&quot;:310,&quot;abs_x&quot;:716,&quot;abs_y&quot;:2308}" bis_id="bn_wx3ntl689afgfgseil6j7i"></a>
+			</div>
+		</div>
+		<!-- <div id="carouselOutletIndex" class="carousel slide w-100 " data-ride="">
+			<ol class="carousel-indicators">
+				<li data-target="#carouselOutletIndex" data-slide-to="0" class="active"></li>
+				<li data-target="#carouselOutletIndex" data-slide-to="1"></li>
+				<li data-target="#carouselOutletIndex" data-slide-to="2"></li>
+				<li data-target="#carouselOutletIndex" data-slide-to="3"></li>
+				<li data-target="#carouselOutletIndex" data-slide-to="4"></li>
+				<li data-target="#carouselOutletIndex" data-slide-to="5"></li>
+			</ol>
+			<div class="carousel-inner w-100">
+				<div class="carousel-item active">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="../img/outlet/1.jpeg" alt="Logo HELVEX">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/1.jpeg" alt="Logo TATSA">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/2.jpeg" alt="Logo Proyecta">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/3.jpeg" alt="Logo GRUPO URREA">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/4.jpeg" alt="Logo CINSA">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/5.jpeg" alt="Logo AMANCO WAVIN">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/6.jpeg" alt="Logo TOTO">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/7.jpeg" alt="Logo esbaño">
+					</div>
+				</div>
+				<div class="carousel-item">
+					<div class="col-12 d-flex" style="height:100%;">
+						<img class="img-fluid m-auto p-0" src="/img/showroom/8.jpeg" alt="Logo nacobre">
+					</div>
+				</div>
+			</div>
+			<a class="carousel-control-prev" href="#carouselOutletIndex" role="button" data-slide="prev">
+				<i class="fas fa-angle-left" style="color:black;"></i>
+			</a>
+			<a class="carousel-control-next" href="#carouselOutletIndex" role="button" data-slide="next">
+				<i class="fas fa-angle-right" style="color:black;"></i>
+			</a>
+		</div> -->
+	</div>
+</section>
+
+<section>
+	<div class="container" bis_skin_checked="1">
+		<h2>Maestros del servicio</h2>
+
+		<div class="row" bis_skin_checked="1">
+			<div class="col-12 col-lg-6" bis_skin_checked="1">
+				<a href="https://docs.google.com/forms/d/e/1FAIpQLSf10DBnEmoCqezWPsgIZ-X9wdXdPDWdFD1iYvcKfehFQ3Yl7w/viewform" target="_blank"><img class="img-fluid p-5" src="./index_files/maestros-del-servicio.jpg" alt="Maestros del servicio"></a>
+			</div>
+			<div class="col-12 col-lg-6" bis_skin_checked="1">
+				<a href="https://drive.google.com/file/d/1a3LEZwnX6GbQHA6xFD7gjzqqIICGl3rh/view" target="_blank" bis_size="{&quot;x&quot;:1286,&quot;y&quot;:3002,&quot;w&quot;:540,&quot;h&quot;:22,&quot;abs_x&quot;:1286,&quot;abs_y&quot;:3002}"><img class="img-fluid p-5" src="./index_files/directorio-de-instaladores.jpg" alt="Directorio de instaladores" bis_size="{&quot;x&quot;:1286,&quot;y&quot;:2745,&quot;w&quot;:540,&quot;h&quot;:539,&quot;abs_x&quot;:1286,&quot;abs_y&quot;:2745}" bis_id="bn_d49kgn42xr496zwclhbdrw"></a>
+			</div>
+		</div>
+	</div>
+</section></main>
+		<footer><div class="container" bis_skin_checked="1">
+	<!-- Write content -->
+	<div class="row pt-4 pb-4" bis_skin_checked="1">
+		<div class="col-12 col-md-3" bis_skin_checked="1">
+			<h6>CONTACTO</h6>
+			<p><a href="tel:5551183200" rel="noopener noreferrer">Tel: 55 5118 3200 con 100 líneas.</a></p>
+			<p><a href="tel:8000010111" rel="noopener noreferrer">Lada sin costo: 800 001 0111</a></p>
+			<p><a href="https://api.whatsapp.com/send?phone=+5215534558219&amp;text=Buen%20d%C3%ADa,%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre..." target="_blank" rel="noopener noreferrer">WhatsApp: 55 3455 8219    </a> / <a class="hover-weight" href="https://wa.me/+5215580619624?text=Buen%20d%C3%ADa,%20me%20gustar%C3%ADa%20informaci%C3%B3n%20sobre" target="_blank"> 55 8061 9624 </a></p>
+		</div>
+		<div class="col-12 col-md-6" bis_skin_checked="1">
+			<h6 class="d-none d-md-block">&nbsp;</h6>
+			<p class="text-center">
+				<a href="https://www.google.com.mx/maps/place/Grupo+Ferreba%C3%B1os+Mayoristas/@19.492641,-99.1559257,17z/data=!3m1!4b1!4m5!3m4!1s0x85d1f91af3606a29:0xcbddac5f55d8b981!8m2!3d19.492636!4d-99.153737" target="_blank" rel="noopener noreferrer">
+				Norte 35 #927 Col. Industrial Vallejo, C.P. 02300 Alcaldía Azcapotzalco, CDMX.
+				</a>
+			</p>
+		</div>
+		<div class="col-12 col-md-3 text-center" bis_skin_checked="1">
+			<h6>SÍGUENOS</h6>
+			<a href="https://www.facebook.com/Ferrebanos" target="_blank"><img src="./index_files/facebook.svg" alt="Logo Facebook"></a>
+		</div>
+	</div>
+	<div class="row" bis_skin_checked="1">
+		<div class="col-12 text-center" bis_skin_checked="1">
+			<p><strong>Grupo Ferrebaños Mayoristas, S.A. de C.V.</strong> - Todos los derechos reservados ®</p>
+			<p><a href="https://ferrebanos.com.mx/file/aviso-de-privacidad.pdf" target="_blank">Aviso de privacidad</a></p>
+		</div>
+	</div>
+</div></footer>
+
+		<!-- Scripts -->
+<script src="./index_files/jquery.min.js.descarga"></script>
+<script src="./index_files/popper.min.js.descarga"></script>
+<script src="./index_files/bootstrap.min.js.descarga"></script>
+
+
+
+<script src="./index_files/main.js.descarga"></script>
+
+<!-- Google Analytics -->
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async="" src="./index_files/js"></script>
+<script>
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+
+	gtag('config', 'G-N5CPN5PE3L');
+</script>	
+</body></html>
